@@ -33,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ] {
             workspace.addObserver(self, selector: #selector(placeCats), name: name, object: nil)
         }
+        workspace.addObserver(
+            self, selector: #selector(reclaimCats),
+            name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
         // Mouse movement over other apps needs no permission, unlike keys.
         pointerMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]
@@ -59,7 +62,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.orderFrontRegardless()
             panels.append(panel)
         }
+        FixedSpace.claim(panels)
         pointerMoved()
+    }
+
+    /// Keeps the cats in the fixed space if switching desktops pulled them
+    /// back onto one.
+    @objc private func reclaimCats() {
+        FixedSpace.claim(panels)
     }
 
     /// The island on `screen`. The menu bar's height places it; while the
