@@ -26,8 +26,36 @@ let notched = ScreenShape(
     #expect(island.band == CGRect(x: 0, y: 1088, width: 1736, height: 45))
     // 58 × 31 pt, from 839 to 897 pt across and 8.5 to 39.5 pt down.
     #expect(island.body == CGRect(x: 839, y: 1093.5, width: 58, height: 31))
-    // Hovered, about 67 × 36 pt, from 4.5 to 40.5 pt down.
-    #expect(island.hovered == CGRect(x: 834.5, y: 1092.5, width: 67, height: 36))
+}
+
+/// What the recordings showed: the pointer at the middle, and 30 pt left of
+/// it, of the island grown to 67 × 36 pt.
+@Test func grownIslandLeansTowardThePointer() throws {
+    let island = try #require(Island.on(proled))
+    let middle = CGPoint(x: 868, y: 1133 - 24)
+    #expect(island.hovered(toward: middle) == CGRect(x: 834.5, y: 1091, width: 67, height: 36))
+    let left = island.hovered(toward: CGPoint(x: 838, y: middle.y))
+    #expect(left.midX == 865)
+}
+
+/// Recorded thresholds, in points from the screen's top-left corner.
+@Test func pointerStartsAndEndsTheHoverWhereTheSystemDoes() throws {
+    let island = try #require(Island.on(proled))
+    func at(_ x: CGFloat, _ down: CGFloat) -> CGPoint { CGPoint(x: x, y: 1133 - down) }
+    // From the left it grows about 7 pt early, from the right about 1.5 pt.
+    #expect(island.startsHover(at: at(832.5, 20)))
+    #expect(!island.startsHover(at: at(830.5, 20)))
+    #expect(island.startsHover(at: at(898, 16)))
+    #expect(!island.startsHover(at: at(900, 16)))
+    // From below, only well inside it.
+    #expect(island.startsHover(at: at(852, 31)))
+    #expect(!island.startsHover(at: at(866, 36)))
+    // Once grown it stays grown out to the grown island's edge.
+    #expect(island.keepsHover(at: at(836, 20)))
+    #expect(island.keepsHover(at: at(866, 42)))
+    #expect(!island.keepsHover(at: at(866, 46)))
+    #expect(!island.keepsHover(at: at(828, 20)))
+    #expect(island.keepsHover(at: at(876, 0)))
 }
 
 @Test func hiddenMenuBarKeepsTheHeightItLastHad() throws {
@@ -41,7 +69,8 @@ let notched = ScreenShape(
     let island = try #require(Island.on(notched))
     #expect(island.isNotch)
     #expect(island.body == CGRect(x: 663.5, y: 950, width: 185, height: 32))
-    #expect(island.hovered == island.body)
+    #expect(island.hovered(toward: CGPoint(x: 700, y: 960)) == island.body)
+    #expect(!island.startsHover(at: CGPoint(x: 756, y: 970)))
 }
 
 @Test func screenWithoutCameraHasNoIsland() {
@@ -63,12 +92,18 @@ let notched = ScreenShape(
 
 /// Everything the cat draws, at its widest swing, fits in its window. The
 /// window's top is the screen's edge, which clips whatever reaches past it.
-@Test(arguments: [proled, notched], [false, true])
-func catFitsItsCanvas(screen: ScreenShape, hovered: Bool) throws {
+@Test(arguments: [proled, notched], 0..<5)
+func catFitsItsCanvas(screen: ScreenShape, pose: Int) throws {
     let island = try #require(Island.on(screen))
     let canvas = island.canvas
-    let placement = Cat.Placement(
-        body: hovered ? island.hovered : island.body, origin: canvas.origin)
+    // At rest, then grown and leaning as far as it can each way.
+    let reach = island.body.insetBy(dx: -40, dy: -24)
+    let toward = [
+        CGPoint(x: reach.minX, y: reach.midY), CGPoint(x: reach.maxX, y: reach.midY),
+        CGPoint(x: reach.midX, y: reach.minY), CGPoint(x: reach.midX, y: reach.maxY),
+    ]
+    let body = pose == 0 ? island.body : island.hovered(toward: toward[pose - 1])
+    let placement = Cat.Placement(body: body, origin: canvas.origin)
     let local = CGRect(origin: .zero, size: canvas.size)
     for part in Cat.parts {
         let bounds = placement.path(part).boundingBoxOfPath

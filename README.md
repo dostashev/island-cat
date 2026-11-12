@@ -33,6 +33,7 @@ It is not notarized, so on another Mac open it once with right-click › Open.
 ```sh
 swift run            # run straight from the package
 scripts/test.sh      # geometry and layout tests
+swift scripts/measure-island.swift 60   # record how the island grows under the pointer
 ```
 
 - `Sources/IslandCatCore` finds the island from what `NSScreen` reports (the
