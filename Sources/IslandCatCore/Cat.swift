@@ -32,7 +32,7 @@ public enum Cat {
         public var segments: [Segment]
         public var filled: Bool
         public var lineWidth: CGFloat
-        /// What it turns around, as a fraction of its bounding box, y up.
+        /// What it turns around, in art units.
         public var pivot: CGPoint
         /// How it moves on its own, and how it moves when the pointer is near.
         public var idle: Motion?
@@ -55,22 +55,24 @@ public enum Cat {
             keyTimes: [0, 0.2, 0.4, 0.6, 1], duration: 0.7, delay: delay)
     }
 
-    /// The ears reach well into the head, so that as they flick their base
-    /// stays inside it and only the ear shows.
+    /// The ears reach well into the head and turn around the inner corner
+    /// where they meet it, so as they flick their base stays inside the
+    /// head and only the ear shows. The tail swings from where it leaves
+    /// the body.
     public static let parts: [Part] = [
         Part(
             name: "body",
             segments: [],  // drawn as a pill; see `bodyPath`
-            filled: true, lineWidth: 0, pivot: p(0.5, 0.5), idle: nil, excited: nil),
+            filled: true, lineWidth: 0, pivot: p(33.5, 18), idle: nil, excited: nil),
         Part(
             name: "left ear",
             segments: [.move(p(4, 13)), .line(p(5, -4)), .line(p(22, 1)), .line(p(24, 8)), .close],
-            filled: true, lineWidth: 1.6, pivot: p(0.5, 0),
+            filled: true, lineWidth: 1.6, pivot: p(22, 1),
             idle: flick(14, duration: 5.3), excited: perked(14)),
         Part(
             name: "right ear",
             segments: [.move(p(63, 13)), .line(p(62, -4)), .line(p(45, 1)), .line(p(43, 8)), .close],
-            filled: true, lineWidth: 1.6, pivot: p(0.5, 0),
+            filled: true, lineWidth: 1.6, pivot: p(45, 1),
             idle: flick(-14, duration: 7.1, delay: 1.7), excited: perked(-14, delay: 0.12)),
         Part(
             name: "left whiskers",
@@ -79,7 +81,7 @@ public enum Cat {
                 .move(p(-3, 18)), .line(p(-17, 18)),
                 .move(p(-3, 23)), .line(p(-16, 27)),
             ],
-            filled: false, lineWidth: 1.6, pivot: p(0.5, 0.5),
+            filled: false, lineWidth: 1.6, pivot: p(-10, 18),
             idle: nil, excited: whiskerTwitch),
         Part(
             name: "right whiskers",
@@ -88,7 +90,7 @@ public enum Cat {
                 .move(p(70, 18)), .line(p(84, 18)),
                 .move(p(70, 23)), .line(p(83, 27)),
             ],
-            filled: false, lineWidth: 1.6, pivot: p(0.5, 0.5),
+            filled: false, lineWidth: 1.6, pivot: p(77, 18),
             idle: nil, excited: whiskerTwitch),
         Part(
             name: "tail",
@@ -97,7 +99,7 @@ public enum Cat {
                 .curve(p(78, 40), p(98, 38), p(104, 25)),
                 .curve(p(108, 15), p(114, 11), p(118, 17)),
             ],
-            filled: false, lineWidth: 3.2, pivot: p(0, 0),
+            filled: false, lineWidth: 3.2, pivot: p(58, 37.2),
             idle: Motion(
                 property: .rotation, values: [4, -3], keyTimes: [0, 1], duration: 3.2,
                 autoreverses: true),

@@ -107,9 +107,7 @@ func catFitsItsCanvas(screen: ScreenShape, pose: Int) throws {
     let local = CGRect(origin: .zero, size: canvas.size)
     for part in Cat.parts {
         let bounds = placement.path(part).boundingBoxOfPath
-        let pivot = CGPoint(
-            x: bounds.minX + part.pivot.x * bounds.width,
-            y: bounds.minY + part.pivot.y * bounds.height)
+        let pivot = placement.point(part.pivot)
         let motions = [part.idle, part.excited].compactMap { $0 }
         let angles = [0] + motions.filter { $0.property == .rotation }.flatMap(\.values)
         let corners = [bounds.minX, bounds.maxX].flatMap { x in
@@ -131,27 +129,27 @@ func catFitsItsCanvas(screen: ScreenShape, pose: Int) throws {
     }
 }
 
-/// An ear's base, the edge that closes it, stays inside the head however
-/// far the ear flicks, so only the ear shows.
+/// An ear's base, the edge that closes it, and every corner of it inside
+/// the head stay inside the head however far the ear flicks, so only the
+/// ear shows.
 @Test(arguments: ["left ear", "right ear"])
 func earBaseStaysInsideTheHead(name: String) throws {
     let island = try #require(Island.on(proled))
     let placement = Cat.Placement(body: island.body, origin: .zero)
     let ear = try #require(Cat.parts.first { $0.name == name })
     let head = placement.bodyPath
-    let box = placement.path(ear).boundingBoxOfPath
-    let pivot = CGPoint(
-        x: box.minX + ear.pivot.x * box.width, y: box.minY + ear.pivot.y * box.height)
+    let pivot = placement.point(ear.pivot)
     let points = ear.segments.compactMap { segment -> CGPoint? in
         switch segment {
         case .move(let p), .line(let p): placement.point(p)
         default: nil
         }
     }
-    // The base runs from the last corner back to the first, and is checked
-    // at its ends and middle.
+    // The base runs from the last corner back to the first; check its ends
+    // and middle, and every other corner that starts inside the head.
     let first = try #require(points.first), last = try #require(points.last)
-    let corners = [first, last, CGPoint(x: (first.x + last.x) / 2, y: (first.y + last.y) / 2)]
+    let middle = CGPoint(x: (first.x + last.x) / 2, y: (first.y + last.y) / 2)
+    let corners = [middle] + points.filter { head.contains($0) }
     let angles = [0] + [ear.idle, ear.excited].compactMap { $0 }.flatMap(\.values)
     for degrees in angles {
         let turn = degrees * .pi / 180
@@ -160,8 +158,8 @@ func earBaseStaysInsideTheHead(name: String) throws {
             let turned = CGPoint(
                 x: pivot.x + d.x * cos(turn) - d.y * sin(turn),
                 y: pivot.y + d.x * sin(turn) + d.y * cos(turn))
-            // A point of margin for the line width and edge smoothing.
-            let inside = [CGPoint(x: 0, y: 1), CGPoint(x: 1, y: 0), CGPoint(x: -1, y: 0)]
+            // Half a point of margin for the line width and edge smoothing.
+            let inside = [CGPoint(x: 0, y: 0.5), CGPoint(x: 0.5, y: 0), CGPoint(x: -0.5, y: 0)]
                 .allSatisfy { head.contains(CGPoint(x: turned.x + $0.x, y: turned.y + $0.y)) }
             #expect(inside, "\(name) corner \(c) at \(degrees)°")
         }

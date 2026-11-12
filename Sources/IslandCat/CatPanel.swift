@@ -139,22 +139,22 @@ final class CatPanel: NSPanel {
     private static func pivot(_ part: Cat.Part, _ placement: Cat.Placement) -> (
         pivot: CGPoint, scale: CGFloat
     ) {
-        let box = placement.path(part).boundingBoxOfPath
-        let at = CGPoint(
-            x: box.minX + part.pivot.x * box.width, y: box.minY + part.pivot.y * box.height)
-        return (at, placement.scale)
+        (placement.point(part.pivot), placement.scale)
     }
 
     private static func piece(_ part: Cat.Part, placement: Cat.Placement, scale: CGFloat) -> Piece {
         let path = placement.path(part)
         let bounds = path.boundingBoxOfPath
+        let pivot = placement.point(part.pivot)
+        let anchor = CGPoint(
+            x: (pivot.x - bounds.minX) / bounds.width, y: (pivot.y - bounds.minY) / bounds.height)
         let holder = CALayer()
-        holder.anchorPoint = part.pivot
+        holder.anchorPoint = anchor
         holder.frame = bounds
 
         let shape = CAShapeLayer()
         shape.contentsScale = scale
-        shape.anchorPoint = part.pivot
+        shape.anchorPoint = anchor
         shape.frame = holder.bounds
         var toLayer = CGAffineTransform(translationX: -bounds.minX, y: -bounds.minY)
         shape.path = path.copy(using: &toLayer)
