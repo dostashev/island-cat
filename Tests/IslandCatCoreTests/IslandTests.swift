@@ -20,11 +20,12 @@ let notched = ScreenShape(
     leftOfCamera: CGRect(x: 0, y: 950, width: 663.5, height: 32),
     rightOfCamera: CGRect(x: 848.5, y: 950, width: 663.5, height: 32))
 
-@Test func islandRestsCenteredInTheMenuBar() throws {
+@Test func islandRestsInTheBottomOfItsHousing() throws {
     let island = try #require(Island.on(proled))
     #expect(!island.isNotch)
     #expect(island.band == CGRect(x: 0, y: 1088, width: 1736, height: 45))
-    #expect(island.body == CGRect(x: 834.5, y: 1092.5, width: 67, height: 36))
+    // 58 × 31 pt, from 839 to 897 pt across and 8.5 to 39.5 pt down.
+    #expect(island.body == CGRect(x: 839, y: 1093.5, width: 58, height: 31))
 }
 
 @Test func hiddenMenuBarKeepsTheHeightItLastHad() throws {

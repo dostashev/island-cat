@@ -27,18 +27,19 @@ public struct ScreenShape: Sendable, Equatable {
 
 /// Where the camera's island sits on a screen.
 public struct Island: Sendable, Equatable {
-    /// The strip across the top of the screen the island is centered in.
+    /// The strip across the top of the screen as tall as the menu bar.
     public var band: CGRect
     /// The island as the system draws it at rest.
     public var body: CGRect
     /// A notch: the housing itself, flush with the top edge.
     public var isNotch: Bool
 
-    /// The Dynamic Island at rest hugs its camera housing: a pill a little
-    /// wider than the housing (67 pt beside a 59 pt housing on the MacBook
-    /// Pro with PROLED XDR Display) and 36 pt tall, centered in the band.
-    static let restExtraWidth: CGFloat = 8
-    static let restHeight: CGFloat = 36
+    /// The Dynamic Island at rest sits in the bottom of its camera housing:
+    /// a pill 31 pt tall, inset 0.5 pt from the housing's sides and bottom
+    /// (58 × 31 pt in the 59 × 40 pt housing of the MacBook Pro with PROLED
+    /// XDR Display, measured from a screenshot).
+    static let restInset: CGFloat = 0.5
+    static let restHeight: CGFloat = 31
 
     /// The island on `screen`, or nil when the screen has no camera housing.
     ///
@@ -65,12 +66,11 @@ public struct Island: Sendable, Equatable {
                 x: housingLeft, y: top - screen.safeTop, width: housing, height: screen.safeTop)
             return Island(band: band, body: body, isNotch: true)
         }
-        let height = min(restHeight, bandHeight)
-        let width = housing + restExtraWidth
+        let height = min(restHeight, screen.safeTop - restInset)
         let body = CGRect(
-            x: housingLeft + housing / 2 - width / 2,
-            y: top - (bandHeight - height) / 2 - height,
-            width: width,
+            x: housingLeft + restInset,
+            y: top - screen.safeTop + restInset,
+            width: housing - 2 * restInset,
             height: height)
         return Island(band: band, body: body, isNotch: false)
     }

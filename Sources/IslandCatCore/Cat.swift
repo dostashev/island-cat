@@ -2,8 +2,8 @@ import CoreGraphics
 
 /// The cat, drawn around the island as if the island were its body.
 ///
-/// Parts are drawn in art units on a 67 × 36 box, y down, that stretches
-/// over the island's body; points outside the box stick out of it.
+/// Parts are drawn in art units on a 67 × 36 box, y down, laid over the
+/// island's body (see `Placement`); points outside the box stick out of it.
 public enum Cat {
     public static let box = CGSize(width: 67, height: 36)
 
