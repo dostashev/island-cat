@@ -31,6 +31,8 @@ public struct Island: Sendable, Equatable {
     public var band: CGRect
     /// The island as the system draws it at rest.
     public var body: CGRect
+    /// The island while the pointer is over it: it grows a little.
+    public var hovered: CGRect
     /// A notch: the housing itself, flush with the top edge.
     public var isNotch: Bool
 
@@ -40,6 +42,9 @@ public struct Island: Sendable, Equatable {
     /// XDR Display, measured from a screenshot).
     static let restInset: CGFloat = 0.5
     static let restHeight: CGFloat = 31
+    /// Under the pointer it grows to about 67 × 36 pt: 4.5 pt out to each
+    /// side, 4 pt up and 1 pt down (measured from a screenshot).
+    static let hoverGrowth = (sides: CGFloat(4.5), up: CGFloat(4), down: CGFloat(1))
 
     /// The island on `screen`, or nil when the screen has no camera housing.
     ///
@@ -64,7 +69,7 @@ public struct Island: Sendable, Equatable {
         if housing >= 3 * screen.safeTop {
             let body = CGRect(
                 x: housingLeft, y: top - screen.safeTop, width: housing, height: screen.safeTop)
-            return Island(band: band, body: body, isNotch: true)
+            return Island(band: band, body: body, hovered: body, isNotch: true)
         }
         let height = min(restHeight, screen.safeTop - restInset)
         let body = CGRect(
@@ -72,22 +77,28 @@ public struct Island: Sendable, Equatable {
             y: top - screen.safeTop + restInset,
             width: housing - 2 * restInset,
             height: height)
-        return Island(band: band, body: body, isNotch: false)
+        let grow = hoverGrowth
+        let hovered = CGRect(
+            x: body.minX - grow.sides,
+            y: body.minY - grow.down,
+            width: body.width + 2 * grow.sides,
+            height: body.height + grow.up + grow.down)
+        return Island(band: band, body: body, hovered: hovered, isNotch: false)
     }
 
     /// Room around the body for the parts that stick out, and for the
     /// pointer to come close before the cat notices.
-    static let sideRoom: CGFloat = 56
+    static let sideRoom: CGFloat = 64
     static let roomBelow: CGFloat = 12
 
     /// The window the cat lives in: the band around the island, plus room
     /// below it for the tail. Also the zone where the pointer livens it up.
     public var canvas: CGRect {
-        let bottom = min(band.minY, body.minY) - Self.roomBelow
+        let bottom = min(band.minY, hovered.minY) - Self.roomBelow
         return CGRect(
-            x: body.minX - Self.sideRoom,
+            x: hovered.minX - Self.sideRoom,
             y: bottom,
-            width: body.width + 2 * Self.sideRoom,
+            width: hovered.width + 2 * Self.sideRoom,
             height: band.maxY - bottom)
     }
 }

@@ -26,6 +26,8 @@ let notched = ScreenShape(
     #expect(island.band == CGRect(x: 0, y: 1088, width: 1736, height: 45))
     // 58 × 31 pt, from 839 to 897 pt across and 8.5 to 39.5 pt down.
     #expect(island.body == CGRect(x: 839, y: 1093.5, width: 58, height: 31))
+    // Hovered, about 67 × 36 pt, from 4.5 to 40.5 pt down.
+    #expect(island.hovered == CGRect(x: 834.5, y: 1092.5, width: 67, height: 36))
 }
 
 @Test func hiddenMenuBarKeepsTheHeightItLastHad() throws {
@@ -39,6 +41,7 @@ let notched = ScreenShape(
     let island = try #require(Island.on(notched))
     #expect(island.isNotch)
     #expect(island.body == CGRect(x: 663.5, y: 950, width: 185, height: 32))
+    #expect(island.hovered == island.body)
 }
 
 @Test func screenWithoutCameraHasNoIsland() {
@@ -60,11 +63,12 @@ let notched = ScreenShape(
 
 /// Everything the cat draws, at its widest swing, fits in its window. The
 /// window's top is the screen's edge, which clips whatever reaches past it.
-@Test(arguments: [proled, notched])
-func catFitsItsCanvas(screen: ScreenShape) throws {
+@Test(arguments: [proled, notched], [false, true])
+func catFitsItsCanvas(screen: ScreenShape, hovered: Bool) throws {
     let island = try #require(Island.on(screen))
     let canvas = island.canvas
-    let placement = Cat.Placement(body: island.body, origin: canvas.origin)
+    let placement = Cat.Placement(
+        body: hovered ? island.hovered : island.body, origin: canvas.origin)
     let local = CGRect(origin: .zero, size: canvas.size)
     for part in Cat.parts {
         let bounds = placement.path(part).boundingBoxOfPath
