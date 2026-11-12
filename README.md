@@ -5,7 +5,11 @@ It draws ears, whiskers and a tail around the Dynamic Island, as if the island
 were the cat's body. The tail sways and an ear flicks now and then; bring the
 pointer close and the cat perks up.
 
-- Sits above the menu bar on every Space, including full-screen apps.
+- Sits above the menu bar on every desktop, including full-screen apps, and
+  stays on the island while you swipe between desktops or open Mission
+  Control. (It lives in its own WindowServer space above the desktops, set up
+  with private SkyLight calls; if a macOS release drops them, the cat still
+  shows on every desktop but slides with each swipe.)
 - Never takes a click: the pointer passes straight through to the menu bar.
 - Follows Reduce Motion (System Settings › Accessibility › Display).
 - On a notched Mac the notch becomes the cat's body.
