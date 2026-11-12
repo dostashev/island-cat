@@ -55,6 +55,8 @@ public enum Cat {
             keyTimes: [0, 0.2, 0.4, 0.6, 1], duration: 0.7, delay: delay)
     }
 
+    /// The ears reach well into the head, so that as they flick their base
+    /// stays inside it and only the ear shows.
     public static let parts: [Part] = [
         Part(
             name: "body",
@@ -62,12 +64,12 @@ public enum Cat {
             filled: true, lineWidth: 0, pivot: p(0.5, 0.5), idle: nil, excited: nil),
         Part(
             name: "left ear",
-            segments: [.move(p(4, 13)), .line(p(5, -4)), .line(p(22, 1)), .close],
+            segments: [.move(p(4, 13)), .line(p(5, -4)), .line(p(22, 1)), .line(p(24, 8)), .close],
             filled: true, lineWidth: 1.6, pivot: p(0.5, 0),
             idle: flick(14, duration: 5.3), excited: perked(14)),
         Part(
             name: "right ear",
-            segments: [.move(p(63, 13)), .line(p(62, -4)), .line(p(45, 1)), .close],
+            segments: [.move(p(63, 13)), .line(p(62, -4)), .line(p(45, 1)), .line(p(43, 8)), .close],
             filled: true, lineWidth: 1.6, pivot: p(0.5, 0),
             idle: flick(-14, duration: 7.1, delay: 1.7), excited: perked(-14, delay: 0.12)),
         Part(
