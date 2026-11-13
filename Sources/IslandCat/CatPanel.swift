@@ -14,9 +14,11 @@ final class CatPanel: NSPanel {
     /// A change of `grown` waiting for the system's island to start it.
     private var pending: Task<Void, Never>?
     private var pointer = NSPoint.zero
-    /// The pointer over the cat pets it, and it says something.
+    /// The pointer resting on the cat pets it, and it says something.
     private lazy var bubble = Bubble(animates: animates)
-    private var lastReply: (text: String, at: Double)?
+    private var lastReply: String?
+    /// Waiting for the pointer to have rested on the cat long enough.
+    private var petting: Task<Void, Never>?
     /// Legs, out only while the cat walks, and roller skates under them
     /// while it glides.
     private let legs = CAShapeLayer()
@@ -137,18 +139,34 @@ final class CatPanel: NSPanel {
         }
     }
 
-    private func pet(at location: NSPoint) {
-        let cat = grown ? island.hovered(toward: location) : island.body
-        guard cat.contains(location) else { return }
-        let now = CACurrentMediaTime()
-        // One thing at a time: while the pointer stays on the cat, it says
-        // something again once the last bubble is gone.
-        if let lastReply, now - lastReply.at < Bubble.shown + 0.4 { return }
-        let reply = Petting.reply(after: lastReply?.text, random: Double.random(in: 0..<1))
-        lastReply = (reply, now)
-        bubble.say(reply, on: island)
+    /// The cat says something once the pointer has rested on it this long,
+    /// and again each time as long again while it stays.
+    static let petAfter = 5.0
+
+    private func onCat(_ location: NSPoint) -> Bool {
+        (grown ? island.hovered(toward: location) : island.body).contains(location)
     }
 
+    private func pet(at location: NSPoint) {
+        guard onCat(location) else {
+            petting?.cancel()
+            petting = nil
+            return
+        }
+        guard petting == nil else { return }
+        petting = Task { [weak self] in
+            while true {
+                try? await Task.sleep(for: .seconds(Self.petAfter))
+                guard !Task.isCancelled, let self else { return }
+                // The pointer may have rested still since; ask where it is.
+                guard self.onCat(NSEvent.mouseLocation) else { break }
+                let reply = Petting.reply(after: self.lastReply, random: Double.random(in: 0..<1))
+                self.lastReply = reply
+                self.bubble.say(reply, on: self.island)
+            }
+            self?.petting = nil
+        }
+    }
     /// Poses the legs `phase` of the way through a step, `reach` of the
     /// way out of the body, and the whiskers with them; or, while gliding
     /// (facing right or not), straight down on what it glides on.
