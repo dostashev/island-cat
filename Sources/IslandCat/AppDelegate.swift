@@ -21,8 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
     private var slide = Moonwalk.Slide()
-    /// The tail trails behind: on the left while the cat goes right.
+    /// The tail trails behind: once the cat has gone right during a walk,
+    /// it is on the left until the legs are tucked away again.
     private var heading = Moonwalk.Heading()
+    private var tailLeft = false
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
     private var reach = 0.0
@@ -65,6 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func swiped(_ change: DesktopSwipes.Change) {
         let now = CACurrentMediaTime()
+        // A new walk starts heading left from where the desktops are.
+        if walkTimer == nil { heading = Moonwalk.Heading(at: slide.offset) }
         switch change {
         case .moved(let progress):
             slide.follow(progress)
@@ -92,14 +96,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let out = now - lastMoved < 0.1
         reach = out ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
         let phase = Moonwalk.phase(slide.offset)
-        let turned = heading.follow(slide.offset)
+        let goesRight = heading.follow(slide.offset) && heading.right && !tailLeft
+        if goesRight { tailLeft = true }
         for panel in panels {
             panel.walk(phase: phase, reach: reach)
-            if turned { panel.tail(onLeft: heading.right) }
+            if goesRight { panel.tail(onLeft: true) }
         }
         if !out && reach == 0 {
             walkTimer?.invalidate()
             walkTimer = nil
+            // The walk is over: the tail goes back to its place.
+            if tailLeft {
+                tailLeft = false
+                for panel in panels { panel.tail(onLeft: false) }
+            }
         }
     }
 
@@ -118,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let island = island(on: screen) else { continue }
             let panel = CatPanel(island: island, scale: screen.backingScaleFactor, animates: animates)
             panel.orderFrontRegardless()
-            if heading.right { panel.tail(onLeft: true) }
+            if tailLeft { panel.tail(onLeft: true) }
             panels.append(panel)
         }
         FixedSpace.claim(panels)

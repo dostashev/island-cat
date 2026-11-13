@@ -94,3 +94,11 @@ import Testing
     #expect(turns == [false, false, true, false, false, true])
     #expect(!heading.right)
 }
+
+/// A walk that starts after the desktops settled one desktop to the right
+/// starts heading left from there, not turning at once.
+@Test func headingStartsFromWhereTheDesktopsAre() {
+    var heading = Moonwalk.Heading(at: 1)
+    let turns = [1.01, 1.05].map { heading.follow($0) }
+    #expect(turns == [false, true])
+}

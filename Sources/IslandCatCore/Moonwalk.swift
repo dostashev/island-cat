@@ -74,7 +74,10 @@ public enum Moonwalk {
         private var furthest: Double = 0
         static let turn = 0.02
 
-        public init() {}
+        /// Heading left, with the desktops at `offset`.
+        public init(at offset: Double = 0) {
+            furthest = offset
+        }
 
         /// Follows the slide to `offset`; returns true when the cat turns.
         public mutating func follow(_ offset: Double) -> Bool {
