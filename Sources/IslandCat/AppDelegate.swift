@@ -88,9 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             WalkTrace.shared.write("lift", progress, velocity)
             let screen = panels.first?.screen ?? NSScreen.main
             let neighbors = screen.map(DesktopSwipes.neighbors) ?? (left: true, right: true)
-            slide.lift(
+            let desktops = slide.lift(
                 at: progress, velocity: velocity, now: now,
                 canGoLeft: neighbors.left, canGoRight: neighbors.right)
+            odometer.add(desktops: desktops, width: screenWidth)
         }
         // The fingers moving the desktops; a swipe held still is not
         // walking.
@@ -149,7 +150,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
-        odometer.follow(slide.offset, width: screenWidth)
         let phase = stride.phase
         for panel in panels {
             panel.walk(phase: phase, reach: reach)
