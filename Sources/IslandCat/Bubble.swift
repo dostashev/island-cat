@@ -8,6 +8,9 @@ import QuartzCore
 final class Bubble: NSPanel {
     private let animates: Bool
     private var hiding: Task<Void, Never>?
+    /// Counts what it has said, so a fade that ends after it said the next
+    /// thing does not hide it.
+    private var said = 0
 
     static let font = NSFont.systemFont(ofSize: 12, weight: .regular)
     static let ink = NSColor(white: 0.78, alpha: 1)
@@ -63,6 +66,7 @@ final class Bubble: NSPanel {
         FixedSpace.claim([self])
 
         hiding?.cancel()
+        said += 1
         let layer = view.layer!
         // Pop out of the tail's tip.
         layer.anchorPoint = CGPoint(x: 1, y: 0)  // the tail's tip
@@ -90,20 +94,32 @@ final class Bubble: NSPanel {
         }
     }
 
+    /// Shrinks back into the tail's tip as it fades, the way it popped out.
     private func fadeOut() {
         guard let layer = contentView?.layer else { return }
+        let shown = said
         CATransaction.begin()
-        CATransaction.setAnimationDuration(0.3)
         CATransaction.setCompletionBlock { [weak self] in
             MainActor.assumeIsolated {
-                guard let self, self.contentView?.layer?.opacity == 0 else { return }
+                // Unless it has said something else since.
+                guard let self, self.said == shown else { return }
                 self.orderOut(nil)
             }
         }
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        let shrink = CABasicAnimation(keyPath: "transform.scale")
+        shrink.fromValue = 1
+        shrink.toValue = animates ? 0.5 : 1
+        let away = CAAnimationGroup()
+        away.animations = [fade, shrink]
+        away.duration = 0.25
+        away.timingFunction = CAMediaTimingFunction(name: .easeIn)
         layer.opacity = 0
+        layer.add(away, forKey: "away")
         CATransaction.commit()
-    }
-}
+    }}
 
 /// Draws the bubble: a black rounded box with a Messages-style tail off its
 /// bottom right corner, at the cat, and the text in it.
