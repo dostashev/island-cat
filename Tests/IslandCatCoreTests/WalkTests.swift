@@ -212,3 +212,27 @@ func skateboardStandsOnTheFloorAndTucksAway(screen: ScreenShape) throws {
     #expect(Set(tucked.deck.map(\.x)).count == 1)
     #expect(tucked.wheelRadius == 0)
 }
+
+/// The rainbow is blocks side by side out to its length, every other one a
+/// step higher, swapping which as the cat steps.
+@Test func rainbowStepsUpEveryOtherBlock() {
+    let blocks = Walk.Rainbow.blocks(length: 25, width: 6, step: 1, flip: false)
+    #expect(blocks.map(\.from) == [0, 6, 12, 18, 24])
+    #expect(blocks.last?.to == 25)
+    #expect(blocks.map(\.rise) == [0, 1, 0, 1, 0])
+    let flipped = Walk.Rainbow.blocks(length: 25, width: 6, step: 1, flip: true)
+    #expect(flipped.map(\.rise) == [1, 0, 1, 0, 1])
+    #expect(Walk.Rainbow.blocks(length: 0, width: 6, step: 1, flip: false).isEmpty)
+    #expect(Walk.Rainbow.flip(phase: 0.1) != Walk.Rainbow.flip(phase: 0.35))
+    #expect(Walk.Rainbow.flip(phase: 0.1) == Walk.Rainbow.flip(phase: 0.6))
+}
+
+/// The longest rainbow fits the cat's window.
+@Test(arguments: [proled, notched])
+func rainbowFitsTheWindow(screen: ScreenShape) throws {
+    let island = try #require(Island.on(screen))
+    let reach = island.body.width / 2 + 90
+    #expect(island.body.midX - reach >= island.canvas.minX)
+    #expect(island.body.midX + reach <= island.canvas.maxX)
+    #expect(island.nearby.width < island.canvas.width)
+}

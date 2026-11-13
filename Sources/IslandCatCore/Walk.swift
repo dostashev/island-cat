@@ -323,3 +323,42 @@ public enum Walk {
         }
     }
 }
+
+extension Walk {
+    /// The rainbow a nyan cat trails while it walks: six bands, drawn as
+    /// short blocks side by side, every other block a step higher, the
+    /// steps swapping with each stride.
+    public enum Rainbow {
+        public static let bands = 6
+        /// One block of every band, `from` to `to` points out from where
+        /// the rainbow starts, raised by `rise` points.
+        public struct Block: Sendable, Equatable {
+            public var from: CGFloat
+            public var to: CGFloat
+            public var rise: CGFloat
+        }
+
+        /// The blocks of a rainbow `length` points long, made of blocks
+        /// `width` wide that step up by `step`; `flip` swaps which blocks
+        /// are raised. The last block is cut short at `length`.
+        public static func blocks(
+            length: CGFloat, width: CGFloat, step: CGFloat, flip: Bool
+        ) -> [Block] {
+            guard length > 0, width > 0 else { return [] }
+            let count = Int((length / width).rounded(.up))
+            return (0..<count).map { i in
+                let raised = (i % 2 == 1) != flip
+                return Block(
+                    from: CGFloat(i) * width, to: min(length, CGFloat(i + 1) * width),
+                    rise: raised ? step : 0)
+            }
+        }
+
+        /// Whether the raised blocks are swapped, `phase` of the way
+        /// through a step: twice a step, with the footfalls.
+        public static func flip(phase: Double) -> Bool {
+            let half = (phase * 2).truncatingRemainder(dividingBy: 1)
+            return half >= 0.5
+        }
+    }
+}

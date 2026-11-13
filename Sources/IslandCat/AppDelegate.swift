@@ -22,6 +22,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The cat is gliding.
     private var skating = false
 
+    /// Trail a rainbow behind the cat while it walks.
+    private var nyan: Bool {
+        get { defaults.bool(forKey: "nyan") }
+        set { defaults.set(newValue, forKey: "nyan") }
+    }
+    /// How far the rainbow is out, 0 to 1.
+    private var trail = 0.0
+
     /// Walk in place while you swipe between desktops.
     private var walks: Bool {
         get { defaults.object(forKey: "walks") as? Bool ?? true }
@@ -135,8 +143,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if slide.isSettling {
             lastMoved = 0
             if glide != .none && reach > 0 {
+                // All the way out, so macOS does not freeze them half out.
                 skating = true
                 stride.stand()
+                reach = 1
             } else if !skating {
                 reach = 0
             }
@@ -158,8 +168,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Only the fingers turn the cat; the system's slide after they
         // lift, even springing back, does not.
         if !slide.isSettling { _ = heading.follow(slide.offset) }
-        // Over once the legs are tucked away and the slide has settled.
-        let done = reach == 0 && !moving && !slide.isSettling
+        // The rainbow streams out as the cat walks and draws back in after
+        // the slide. When the fingers lift it is all the way out at once,
+        // so macOS does not freeze it half out through the slide.
+        if moving {
+            trail = nyan ? min(1, trail + elapsed / 0.25) : 0
+        } else if slide.isSettling {
+            if trail > 0 { trail = 1 }
+        } else {
+            trail = max(0, trail - elapsed / 0.3)
+        }
+        // Over once the legs and the rainbow are away and the slide has
+        // settled.
+        let done = reach == 0 && trail == 0 && !moving && !slide.isSettling
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
@@ -170,6 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 phase: phase, reach: reach,
                 gliding: skating ? (on: glide, facingRight: heading.right) : nil)
             if turned { panel.tail(onLeft: left) }
+            panel.trail(amount: trail, onRight: !heading.right, flip: Walk.Rainbow.flip(phase: phase))
         }
         if done {
             walkTimer?.invalidate()
@@ -272,6 +294,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         walk.target = self
         walk.state = walks ? .on : .off
         menu.addItem(walk)
+        let rainbow = NSMenuItem(
+            title: "Nyan Mode", action: walks ? #selector(toggleNyan) : nil, keyEquivalent: "")
+        rainbow.target = self
+        rainbow.state = nyan ? .on : .off
+        rainbow.indentationLevel = 1
+        menu.addItem(rainbow)
         let glides = NSMenu()
         for (choice, title) in [
             (Walk.Glide.skates, "Roller Skates"), (.skateboard, "Skateboard"), (.none, "Nothing"),
@@ -313,6 +341,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         format.minimumFractionDigits = 1
         format.maximumFractionDigits = 1
         return "\(format.string(from: NSNumber(value: meters)) ?? String(meters)) m"
+    }
+
+    @objc private func toggleNyan() {
+        nyan.toggle()
     }
 
     @objc private func chooseGlide(_ item: NSMenuItem) {

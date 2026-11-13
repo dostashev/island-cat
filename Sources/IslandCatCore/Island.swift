@@ -75,13 +75,26 @@ public struct Island: Sendable, Equatable {
         return Island(band: band, body: body, isNotch: false)
     }
 
-    /// Room around the body for the parts that stick out, and for the
-    /// pointer to come close before the cat notices.
-    static let sideRoom: CGFloat = 64
+    /// How close, around the grown island, the pointer comes before the
+    /// cat notices.
+    static let noticeRoom: CGFloat = 64
+    /// Room around the body for the parts that stick out, the nyan
+    /// rainbow's the longest.
+    static let sideRoom: CGFloat = 104
     static let roomBelow: CGFloat = 12
 
+    /// Where the pointer livens the cat up: around the grown island, down
+    /// to the bottom of the window.
+    public var nearby: CGRect {
+        let window = canvas
+        let grown = hoverReach
+        return CGRect(
+            x: grown.minX - Self.noticeRoom, y: window.minY,
+            width: grown.width + 2 * Self.noticeRoom, height: window.height)
+    }
+
     /// The window the cat lives in: the band around the island, plus room
-    /// below it for the tail. Also the zone where the pointer livens it up.
+    /// below it for the tail and at the sides for the rainbow.
     public var canvas: CGRect {
         let grown = hoverReach
         let bottom = min(band.minY, grown.minY) - Self.roomBelow

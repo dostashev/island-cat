@@ -38,7 +38,8 @@ place while you swipe between desktops, following your fingers. Seeing the
 swipe as it happens needs Input Monitoring permission (System Settings ›
 Privacy & Security › Input Monitoring); the app asks for it. Under it, **Glide
 On** picks what the cat stands on while macOS finishes the slide after you lift
-your fingers: roller skates, a skateboard, or nothing (the default).
+your fingers: roller skates, a skateboard, or nothing (the default). **Nyan
+Mode** (off by default) trails a rainbow behind the cat while it walks.
 
 ## Develop
 

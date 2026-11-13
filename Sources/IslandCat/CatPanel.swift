@@ -23,6 +23,19 @@ final class CatPanel: NSPanel {
     /// while it glides.
     private let legs = CAShapeLayer()
     private let skates = CAShapeLayer()
+    /// The nyan cat's rainbow, one layer a band, behind everything, fading
+    /// out toward its end.
+    private let rainbow = CALayer()
+    private let rainbowFade = CAGradientLayer()
+    /// The rainbow is drawn on the right and mirrored to trail on the left.
+    private var rainbowOnRight = true
+    private let bands: [CAShapeLayer] = [
+        (1, 0, 0), (1, 0.6, 0), (1, 1, 0), (0.2, 1, 0), (0, 0.6, 1), (0.4, 0.2, 1),
+    ].map { red, green, blue in
+        let band = CAShapeLayer()
+        band.fillColor = NSColor(srgbRed: red, green: green, blue: blue, alpha: 1).cgColor
+        return band
+    }
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
     private let tailSide = CALayer()
 
@@ -64,6 +77,14 @@ final class CatPanel: NSPanel {
         legs.fillColor = nil
         legs.lineWidth = Walk.legWidth
         legs.lineCap = .round
+        for band in bands { rainbow.addSublayer(band) }
+        // Mirrored across the middle of the body to trail on the left.
+        rainbow.anchorPoint = CGPoint(x: (island.body.midX - canvas.minX) / canvas.width, y: 0.5)
+        rainbow.frame = view.bounds
+        rainbowFade.frame = rainbow.bounds
+        rainbowFade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
+        rainbow.mask = rainbowFade
+        view.layer?.addSublayer(rainbow)
         view.layer?.addSublayer(legs)
         skates.contentsScale = scale
         skates.fillColor = NSColor.black.cgColor
@@ -92,7 +113,7 @@ final class CatPanel: NSPanel {
     /// ears, whiskers and tail on the island while the pointer makes it grow.
     func pointer(at location: NSPoint) {
         pointer = location
-        let near = island.canvas.contains(location)
+        let near = island.nearby.contains(location)
         if near != excited {
             excited = near
             move()
@@ -212,11 +233,17 @@ final class CatPanel: NSPanel {
     /// Swings the tail behind the body to the left side of the cat, or back
     /// to the right.
     func tail(onLeft: Bool) {
+        swing(tailSide, onLeft: onLeft)
+    }
+
+    /// Mirrors `layer` across the cat to its left side, or back, swinging
+    /// it round behind the body.
+    private func swing(_ layer: CALayer, onLeft: Bool) {
         let to = NSValue(caTransform3D: CATransform3DMakeScale(onLeft ? -1 : 1, 1, 1))
-        let from = (tailSide.presentation() ?? tailSide).value(forKeyPath: "transform")
+        let from = (layer.presentation() ?? layer).value(forKeyPath: "transform")
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        tailSide.transform = to.caTransform3DValue
+        layer.transform = to.caTransform3DValue
         CATransaction.commit()
         guard animates else { return }
         let swing = CABasicAnimation(keyPath: "transform")
@@ -224,7 +251,46 @@ final class CatPanel: NSPanel {
         swing.toValue = to
         swing.duration = 0.35
         swing.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        tailSide.add(swing, forKey: "swing")
+        layer.add(swing, forKey: "swing")
+    }
+
+    /// Trails the rainbow out behind the cat, on its right or left,
+    /// `amount` of the way out, its blocks stepped as `flip` says. It swings
+    /// round from one side to the other like the tail.
+    func trail(amount: Double, onRight: Bool, flip: Bool) {
+        if onRight != rainbowOnRight {
+            rainbowOnRight = onRight
+            swing(rainbow, onLeft: !onRight)
+        }
+        let origin = island.canvas.origin
+        let body = island.body.offsetBy(dx: -origin.x, dy: -origin.y)
+        // From the middle of the body, behind it, out past the whiskers.
+        let length = (body.width / 2 + 90) * CGFloat(min(1, max(0, amount)))
+        let height = (body.height * 0.85).rounded()
+        let band = height / CGFloat(Walk.Rainbow.bands)
+        let bottom = body.midY - height / 2
+        let blocks = Walk.Rainbow.blocks(length: length, width: 6, step: 1, flip: flip)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // Solid by the cat, fading out over the last 30 points.
+        let width = rainbow.bounds.width
+        let end = body.midX + length
+        rainbowFade.startPoint = CGPoint(x: body.midX / width, y: 0.5)
+        rainbowFade.endPoint = CGPoint(x: end / width, y: 0.5)
+        let fade = length > 0 ? min(1, 30 / length) : 1
+        rainbowFade.locations = [0, NSNumber(value: Double(1 - fade)), 1]
+        for (index, layer) in bands.enumerated() {
+            let path = CGMutablePath()
+            // Red on top.
+            let y = bottom + CGFloat(Walk.Rainbow.bands - 1 - index) * band
+            for block in blocks {
+                let from = body.midX + block.from
+                path.addRect(
+                    CGRect(x: from, y: y + block.rise, width: block.to - block.from, height: band))
+            }
+            layer.path = path
+        }
+        CATransaction.commit()
     }
 
     private func move() {
