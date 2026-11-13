@@ -139,30 +139,46 @@ final class CatPanel: NSPanel {
         }
     }
 
-    /// The cat says something once the pointer has rested on it this long,
+    /// The cat says something once the pointer has been on it this long,
     /// and again each time as long again while it stays.
     static let petAfter = 3.0
+    /// How long the pointer can slip off the cat without starting the wait
+    /// over, so petting it while moving around counts.
+    static let slipAllowed = 0.6
 
+    /// Where the pointer pets the cat: its body or the grown island, a few
+    /// points either side, and up to the top of the screen, where a pointer
+    /// pushed against the edge stops.
     private func onCat(_ location: NSPoint) -> Bool {
-        (grown ? island.hovered(toward: location) : island.body).contains(location)
+        let cat = (grown ? island.hovered(toward: location) : island.body).union(island.body)
+        let area = CGRect(
+            x: cat.minX - 6, y: cat.minY - 2,
+            width: cat.width + 12, height: island.band.maxY - cat.minY + 2)
+        return area.contains(location)
     }
 
     private func pet(at location: NSPoint) {
-        guard onCat(location) else {
-            petting?.cancel()
-            petting = nil
-            return
-        }
-        guard petting == nil else { return }
+        guard petting == nil, onCat(location) else { return }
         petting = Task { [weak self] in
-            while true {
-                try? await Task.sleep(for: .seconds(Self.petAfter))
-                guard !Task.isCancelled, let self else { return }
-                // The pointer may have rested still since; ask where it is.
-                guard self.onCat(NSEvent.mouseLocation) else { break }
-                let reply = Petting.reply(after: self.lastReply, random: Double.random(in: 0..<1))
-                self.lastReply = reply
-                self.bubble.say(reply, on: self.island)
+            var since = ContinuousClock.now
+            var lastOn = since
+            // Checks where the pointer is ten times a second while it is
+            // near, so resting it still or slipping off for a moment counts.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard let self else { return }
+                let now = ContinuousClock.now
+                if self.onCat(NSEvent.mouseLocation) {
+                    lastOn = now
+                } else if now - lastOn > .seconds(Self.slipAllowed) {
+                    break
+                }
+                if now - since >= .seconds(Self.petAfter) {
+                    since = now
+                    let reply = Petting.reply(after: self.lastReply, random: Double.random(in: 0..<1))
+                    self.lastReply = reply
+                    self.bubble.say(reply, on: self.island)
+                }
             }
             self?.petting = nil
         }
