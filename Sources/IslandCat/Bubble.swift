@@ -3,16 +3,17 @@ import IslandCatCore
 import QuartzCore
 
 /// A speech bubble the cat says something in: black like the cat, in the
-/// menu bar to its left, its tail pointing at the cat.
+/// menu bar to its left, its tail coming off the bottom right at the cat.
 @MainActor
 final class Bubble: NSPanel {
     private let animates: Bool
     private var hiding: Task<Void, Never>?
 
-    static let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+    static let font = NSFont.systemFont(ofSize: 12, weight: .regular)
+    static let ink = NSColor(white: 0.78, alpha: 1)
     static let padding = NSSize(width: 9, height: 4)
-    /// The tail's length out of the box, and its width where it leaves it.
-    static let tail = NSSize(width: 6, height: 8)
+    /// How far the tail's tip reaches right of and below the box.
+    static let tail = NSSize(width: 5, height: 6)
     static let shown = 2.4
 
     init(animates: Bool) {
@@ -41,20 +42,18 @@ final class Bubble: NSPanel {
     func say(_ text: String, on island: Island) {
         let label = NSAttributedString(
             string: text,
-            attributes: [.font: Self.font, .foregroundColor: NSColor(white: 0.92, alpha: 1)])
+            attributes: [.font: Self.font, .foregroundColor: Self.ink])
         let textSize = label.size()
         let box = NSSize(
             width: ceil(textSize.width) + 2 * Self.padding.width,
             height: ceil(textSize.height) + 2 * Self.padding.height)
-        let size = NSSize(width: box.width + Self.tail.width, height: box.height)
+        let size = NSSize(width: box.width + Self.tail.width, height: box.height + Self.tail.height)
         // The tail's tip sits just short of the cat's whiskers, level with
-        // the middle of its face, and the bubble opens out to the left.
-        let whiskers = Cat.Placement(body: island.body, origin: .zero).point(CGPoint(x: -17, y: 18))
-        let tip = CGPoint(x: whiskers.x - 3, y: island.body.midY)
+        // the lowest one, and the bubble opens out up and to the left.
+        let whiskers = Cat.Placement(body: island.body, origin: .zero).point(CGPoint(x: -17, y: 25))
+        let tip = CGPoint(x: whiskers.x - 2, y: whiskers.y)
         setFrame(
-            NSRect(
-                x: tip.x - size.width, y: tip.y - size.height / 2, width: size.width,
-                height: size.height),
+            NSRect(x: tip.x - size.width, y: tip.y, width: size.width, height: size.height),
             display: false)
 
         let view = BubbleView(frame: NSRect(origin: .zero, size: size), label: label)
@@ -65,7 +64,7 @@ final class Bubble: NSPanel {
         hiding?.cancel()
         let layer = view.layer!
         // Pop out of the tail's tip.
-        layer.anchorPoint = CGPoint(x: 1, y: 0.5)
+        layer.anchorPoint = CGPoint(x: 1, y: 0)
         layer.frame = view.bounds
         layer.opacity = 1
         if animates {
@@ -105,8 +104,8 @@ final class Bubble: NSPanel {
     }
 }
 
-/// Draws the bubble: a black rounded box with a tail pointing right, at
-/// the cat, and the text in it.
+/// Draws the bubble: a black rounded box with a tail off its bottom right,
+/// at the cat, and the text in it.
 private final class BubbleView: NSView {
     private let label: NSAttributedString
 
@@ -120,15 +119,23 @@ private final class BubbleView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let box = NSRect(
-            x: 0, y: 0, width: bounds.width - Bubble.tail.width, height: bounds.height)
+            x: 0, y: Bubble.tail.height, width: bounds.width - Bubble.tail.width,
+            height: bounds.height - Bubble.tail.height)
         NSColor.black.setFill()
         NSBezierPath(roundedRect: box, xRadius: box.height / 2, yRadius: box.height / 2).fill()
-        // The tail, from inside the right end out to the tip, filled on its
-        // own so it does not cancel out where it overlaps the box.
+        // The tail, from inside the bottom edge near the right end down to
+        // the tip, filled on its own so it does not cancel out where it
+        // overlaps the box.
         let tail = NSBezierPath()
-        tail.move(to: NSPoint(x: box.maxX - 6, y: box.midY + Bubble.tail.height / 2))
-        tail.line(to: NSPoint(x: bounds.maxX, y: box.midY))
-        tail.line(to: NSPoint(x: box.maxX - 6, y: box.midY - Bubble.tail.height / 2))
+        tail.move(to: NSPoint(x: box.maxX - 15, y: box.minY + 4))
+        tail.curve(
+            to: NSPoint(x: bounds.maxX, y: 0),
+            controlPoint1: NSPoint(x: box.maxX - 9, y: box.minY - 2),
+            controlPoint2: NSPoint(x: bounds.maxX - 3, y: 1))
+        tail.curve(
+            to: NSPoint(x: box.maxX - 5, y: box.minY + 4),
+            controlPoint1: NSPoint(x: box.maxX - 1, y: 2),
+            controlPoint2: NSPoint(x: box.maxX - 3, y: box.minY))
         tail.close()
         tail.fill()
         let size = label.size()
