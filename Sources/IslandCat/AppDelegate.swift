@@ -14,16 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         set { defaults.set(newValue, forKey: "showsCat") }
     }
 
-    /// Moonwalk in place while you swipe between desktops.
-    private var moonwalks: Bool {
-        get { defaults.bool(forKey: "moonwalks") }
-        set { defaults.set(newValue, forKey: "moonwalks") }
+    /// Walk in place while you swipe between desktops.
+    private var walks: Bool {
+        get { defaults.bool(forKey: "walks") }
+        set { defaults.set(newValue, forKey: "walks") }
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
-    private var slide = Moonwalk.Slide()
+    private var slide = Walk.Slide()
     /// The tail trails behind: once the cat has gone right during a walk,
     /// it is on the left until the legs are tucked away again.
-    private var heading = Moonwalk.Heading()
+    private var heading = Walk.Heading()
     private var tailLeft = false
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
@@ -60,15 +60,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
         placeCats()
-        if moonwalks { _ = swipes.start() }
+        if walks { _ = swipes.start() }
     }
 
-    // MARK: Moonwalk
+    // MARK: Walking
 
     private func swiped(_ change: DesktopSwipes.Change) {
         let now = CACurrentMediaTime()
         // A new walk starts heading left from where the desktops are.
-        if walkTimer == nil { heading = Moonwalk.Heading(at: slide.offset) }
+        if walkTimer == nil { heading = Walk.Heading(at: slide.offset) }
         switch change {
         case .moved(let progress):
             slide.follow(progress)
@@ -95,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if slide.advance(to: now) { lastMoved = now }
         let out = now - lastMoved < 0.1
         reach = out ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
-        let phase = Moonwalk.phase(slide.offset)
+        let phase = Walk.phase(slide.offset)
         let goesRight = heading.follow(slide.offset) && heading.right && !tailLeft
         if goesRight { tailLeft = true }
         for panel in panels {
@@ -182,10 +182,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(login)
 
         let walk = NSMenuItem(
-            title: "Moonwalk When Switching Desktops", action: #selector(toggleMoonwalk),
+            title: "Walk When Switching Desktops", action: #selector(toggleWalk),
             keyEquivalent: "")
         walk.target = self
-        walk.state = moonwalks ? .on : .off
+        walk.state = walks ? .on : .off
         menu.addItem(walk)
 
         menu.addItem(.separator())
@@ -198,19 +198,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         placeCats()
     }
 
-    @objc private func toggleMoonwalk() {
-        moonwalks.toggle()
-        guard moonwalks else {
+    @objc private func toggleWalk() {
+        walks.toggle()
+        guard walks else {
             swipes.stop()
             return
         }
         if !swipes.start() {
             let alert = NSAlert()
-            alert.messageText = "Island Cat needs Input Monitoring to moonwalk"
+            alert.messageText = "Island Cat needs Input Monitoring to walk"
             alert.informativeText =
                 "To follow your swipe as it happens, Island Cat listens to the trackpad's "
                 + "desktop-swipe gesture. Turn on Island Cat in System Settings › Privacy & "
-                + "Security › Input Monitoring; the cat starts moonwalking as soon as it's on."
+                + "Security › Input Monitoring; the cat starts walking as soon as it's on."
             alert.runModal()
         }
     }

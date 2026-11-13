@@ -14,7 +14,7 @@ final class CatPanel: NSPanel {
     /// A change of `grown` waiting for the system's island to start it.
     private var pending: Task<Void, Never>?
     private var pointer = NSPoint.zero
-    /// Legs, out only while the cat moonwalks.
+    /// Legs, out only while the cat walks.
     private let legs = CAShapeLayer()
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
     private let tailSide = CALayer()
@@ -111,7 +111,7 @@ final class CatPanel: NSPanel {
         let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
         let path = CGMutablePath()
         if reach > 0 {
-            for leg in Moonwalk.legs(phase: phase, reach: reach) {
+            for leg in Walk.legs(phase: phase, reach: reach) {
                 path.move(to: placement.point(leg.hip))
                 path.addLine(to: placement.point(leg.foot))
             }

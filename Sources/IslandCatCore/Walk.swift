@@ -1,9 +1,10 @@
 import CoreGraphics
 import Foundation
 
-/// The cat moonwalking in place while you swipe between desktops: its feet
-/// slide along with the sliding desktop, so it looks to walk with it.
-public enum Moonwalk {
+/// The cat walking in place while you swipe between desktops: it stays on
+/// the island, fixed on the screen, and walks the way the desktops slide,
+/// as if going along with them.
+public enum Walk {
     /// How far the desktops have slid, in desktop widths: down while they
     /// move left (on to the desktop on the right), up while they move
     /// right. Follows the swipe while the fingers are down, then the
@@ -94,10 +95,11 @@ public enum Moonwalk {
     /// Steps the cat takes while the desktops slide one desktop width.
     public static let stepsPerDesktop = 5.0
 
-    /// Where the cat is in its stride after the desktops slid `offset`:
-    /// it steps forward as the desktops move left, back as they move right.
+    /// Where the cat is in its stride after the desktops slid `offset`: it
+    /// steps forward as they slide right, the way it walks then, and back
+    /// as they slide left.
     public static func phase(_ offset: Double) -> Double {
-        let steps = -offset * stepsPerDesktop
+        let steps = offset * stepsPerDesktop
         return steps - steps.rounded(.down)
     }
 
@@ -113,8 +115,9 @@ public enum Moonwalk {
         let legs: [(x: CGFloat, offset: Double)] = [(12, 0), (23, 0.5), (44, 0), (55, 0.5)]
         return legs.map { leg in
             let p = (phase + leg.offset).truncatingRemainder(dividingBy: 1)
-            // On the ground the foot slides back with the desktop; in the
-            // air it swings forward again.
+            // On the ground the foot pushes back, against the way the cat
+            // walks; in the air it swings forward again. Phase running
+            // backward walks the other way.
             let x: CGFloat
             let up: CGFloat
             if p < 0.5 {
