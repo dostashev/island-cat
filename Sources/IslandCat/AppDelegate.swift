@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Walk in place while you swipe between desktops.
     private var walks: Bool {
-        get { defaults.bool(forKey: "walks") }
+        get { defaults.object(forKey: "walks") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "walks") }
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }

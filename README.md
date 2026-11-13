@@ -31,7 +31,7 @@ with "Island Cat Local Signing" when that identity exists
 its permissions across rebuilds; otherwise it signs ad hoc. It is not
 notarized, so on another Mac open it once with right-click › Open.
 
-**Walk When Switching Desktops** (off by default) has the cat step in
+**Walk When Switching Desktops** (on by default) has the cat step in
 place while you swipe between desktops, following your fingers. Seeing the
 swipe as it happens needs Input Monitoring permission (System Settings ›
 Privacy & Security › Input Monitoring); the app asks for it.
