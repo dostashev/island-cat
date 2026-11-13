@@ -104,6 +104,24 @@ public enum Walk {
         return min(42, room / scale)
     }
 
+    /// How far the cat has walked: as far as the desktops have slid under
+    /// it, either way, on a screen `width` meters wide.
+    public struct Odometer: Sendable {
+        public private(set) var meters: Double
+        private var last: Double?
+
+        public init(meters: Double = 0) {
+            self.meters = meters
+        }
+
+        /// The desktops are at `offset` desktop widths on a screen `width`
+        /// meters wide.
+        public mutating func follow(_ offset: Double, width: Double) {
+            if let last { meters += abs(offset - last) * width }
+            last = offset
+        }
+    }
+
     /// Steps the cat takes while the desktops slide one desktop width.
     public static let stepsPerDesktop = 5.0
 

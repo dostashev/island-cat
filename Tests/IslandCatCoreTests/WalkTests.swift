@@ -115,3 +115,11 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     let turns = [1.01, 1.05].map { heading.follow($0) }
     #expect(turns == [false, true])
 }
+
+/// Over and back counts both ways: one desktop right and back on the
+/// 34.6 cm wide PROLED panel is 69.2 cm.
+@Test func odometerCountsEveryWayTheDesktopsSlide() {
+    var odometer = Walk.Odometer(meters: 1)
+    for offset in [0, 0.5, 1, 0.6, 0] { odometer.follow(offset, width: 0.346) }
+    #expect(abs(odometer.meters - 1.692) < 1e-9)
+}

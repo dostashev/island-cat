@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// it goes right.
     private var heading = Walk.Heading()
     private var tailLeft = false
+    private lazy var odometer = Walk.Odometer(meters: defaults.double(forKey: "metersWalked"))
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
     private var reach = 0.0
@@ -104,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
+        odometer.follow(slide.offset, width: screenWidth)
         let phase = Walk.phase(slide.offset)
         for panel in panels {
             panel.walk(phase: phase, reach: reach)
@@ -112,7 +114,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if done {
             walkTimer?.invalidate()
             walkTimer = nil
+            defaults.set(odometer.meters, forKey: "metersWalked")
         }
+    }
+
+    /// The width of the screen the cat walks on, in meters, as the display
+    /// reports it; 34.6 cm (the 16-inch MacBook Pro) when it does not.
+    private var screenWidth: Double {
+        let number = panels.first?.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
+        guard let id = number as? CGDirectDisplayID else { return 0.346 }
+        let millimeters = CGDisplayScreenSize(id).width
+        return millimeters > 0 ? millimeters / 1000 : 0.346
     }
 
     private func pointerMoved() {
@@ -189,6 +201,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         walk.target = self
         walk.state = walks ? .on : .off
         menu.addItem(walk)
+        if walks || odometer.meters > 0 {
+            let walked = NSMenuItem(
+                title: "Walked \(Self.distance(odometer.meters))", action: nil, keyEquivalent: "")
+            walked.isEnabled = false
+            walked.indentationLevel = 1
+            menu.addItem(walked)
+        }
 
         menu.addItem(.separator())
         menu.addItem(
@@ -198,6 +217,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleCat() {
         showsCat.toggle()
         placeCats()
+    }
+
+    /// Meters with one decimal, grouped the way this Mac's locale groups
+    /// numbers.
+    static func distance(_ meters: Double) -> String {
+        let format = NumberFormatter()
+        format.numberStyle = .decimal
+        format.minimumFractionDigits = 1
+        format.maximumFractionDigits = 1
+        return "\(format.string(from: NSNumber(value: meters)) ?? String(meters)) m"
     }
 
     @objc private func toggleWalk() {
