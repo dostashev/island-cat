@@ -97,9 +97,11 @@ public enum Walk {
 
     /// Where the cat is in its stride after the desktops slid `offset`: it
     /// steps forward as they slide right, the way it walks then, and back
-    /// as they slide left.
+    /// as they slide left. A desktop at rest is a quarter of the way into
+    /// a step, where every leg stands straight under its hip, half of them
+    /// on the ground and half mid-swing, so a walk starts and ends there.
     public static func phase(_ offset: Double) -> Double {
-        let steps = offset * stepsPerDesktop
+        let steps = offset * stepsPerDesktop + 0.25
         return steps - steps.rounded(.down)
     }
 

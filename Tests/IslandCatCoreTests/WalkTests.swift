@@ -38,10 +38,19 @@ import Testing
 /// A whole desktop is a whole number of steps, so the stride carries on
 /// where it left off at the next swipe.
 @Test func strideIsContinuousAcrossDesktops() {
-    #expect(Walk.phase(0) == 0)
-    #expect(abs(Walk.phase(-1)) < 1e-9 || abs(Walk.phase(-1) - 1) < 1e-9)
-    #expect(abs(Walk.phase(-0.1) - 0.5) < 1e-9)
-    #expect(abs(Walk.phase(0.1) - 0.5) < 1e-9)
+    for desktops in [-2.0, -1, 1, 3] {
+        #expect(abs(Walk.phase(desktops) - Walk.phase(0)) < 1e-9)
+    }
+    #expect(abs(Walk.phase(0.1) - Walk.phase(-0.1)) < 1e-9)
+}
+
+/// On every desktop at rest the legs stand straight under the hips, not
+/// meeting in a V.
+@Test(arguments: [0.0, -1, 1, 2])
+func legsStandStraightOnADesktopAtRest(offset: Double) {
+    for leg in Walk.legs(phase: Walk.phase(offset), reach: 1) {
+        #expect(abs(leg.foot.x - leg.hip.x) < 1e-9)
+    }
 }
 
 /// The cat walks the way the desktops slide: going right, the feet on the
@@ -50,11 +59,13 @@ import Testing
 func feetOnTheGroundPushBackAgainstTheWalk(from: Double, to: Double, right: Bool) {
     let early = Walk.legs(phase: Walk.phase(from), reach: 1)
     let later = Walk.legs(phase: Walk.phase(to), reach: 1)
-    // The first leg is on the ground at the start of a step going right,
-    // and at the end of one going left.
-    let leg = right ? 0 : 1
-    #expect(early[leg].foot.y == later[leg].foot.y)
-    #expect(right ? later[leg].foot.x < early[leg].foot.x : later[leg].foot.x > early[leg].foot.x)
+    let ground = early.map(\.foot.y).max()!
+    // The legs on the ground at both moments.
+    let planted = early.indices.filter { early[$0].foot.y == ground && later[$0].foot.y == ground }
+    #expect(planted.count == 2)
+    for leg in planted {
+        #expect(right ? later[leg].foot.x < early[leg].foot.x : later[leg].foot.x > early[leg].foot.x)
+    }
 }
 
 @Test func tuckedLegsStayInTheBody() {
