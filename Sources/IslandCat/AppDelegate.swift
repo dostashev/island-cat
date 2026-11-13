@@ -14,6 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         set { defaults.set(newValue, forKey: "showsCat") }
     }
 
+    /// What the cat glides on while the desktops finish sliding.
+    private var glide: Walk.Glide {
+        get { defaults.string(forKey: "glide").flatMap(Walk.Glide.init) ?? .none }
+        set { defaults.set(newValue.rawValue, forKey: "glide") }
+    }
+    /// The cat is gliding.
+    private var skating = false
+
     /// Walk in place while you swipe between desktops.
     private var walks: Bool {
         get { defaults.object(forKey: "walks") as? Bool ?? true }
@@ -121,22 +129,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // The cat walks while the fingers move the desktops: faster than a
         // tenth of a desktop a second. Once they lift, macOS finishes the
         // slide without drawing any app's windows, so the cat would freeze
-        // mid-step; it tucks its legs away at once instead and stands still
-        // through the rest of the slide.
+        // mid-step. Instead it gets on its skates or skateboard at once and
+        // glides through the rest of the slide, frozen mid-glide, or without
+        // either, tucks its legs away at once and stands still.
         if slide.isSettling {
             lastMoved = 0
-            reach = 0
+            if glide != .none && reach > 0 {
+                skating = true
+                stride.stand()
+            } else if !skating {
+                reach = 0
+            }
         } else if elapsed > 0, abs(slid) / elapsed > 0.1 {
             lastMoved = now
+            skating = false
         }
         let moving = now - lastMoved < 0.1
         if moving {
             stride.follow(slid, elapsed: elapsed)
             reach = min(1, reach + elapsed / 0.1)
-        } else {
-            // Finish the step on straight legs, then tuck them away.
+        } else if !(skating && slide.isSettling) {
+            // Finish the step on straight legs, then tuck them away; on
+            // skates or a board, once the slide is over.
             stride.finish(elapsed: elapsed)
             if stride.isStraight { reach = max(0, reach - elapsed / 0.15) }
+            if reach == 0 { skating = false }
         }
         // Only the fingers turn the cat; the system's slide after they
         // lift, even springing back, does not.
@@ -149,7 +166,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         odometer.follow(slide.offset, width: desktopPitch)
         let phase = stride.phase
         for panel in panels {
-            panel.walk(phase: phase, reach: reach)
+            panel.walk(
+                phase: phase, reach: reach,
+                gliding: skating ? (on: glide, facingRight: heading.right) : nil)
             if turned { panel.tail(onLeft: left) }
         }
         if done {
@@ -253,6 +272,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         walk.target = self
         walk.state = walks ? .on : .off
         menu.addItem(walk)
+        let glides = NSMenu()
+        for (choice, title) in [
+            (Walk.Glide.skates, "Roller Skates"), (.skateboard, "Skateboard"), (.none, "Nothing"),
+        ] {
+            let item = NSMenuItem(title: title, action: #selector(chooseGlide), keyEquivalent: "")
+            item.target = self
+            item.representedObject = choice.rawValue
+            item.state = glide == choice ? .on : .off
+            glides.addItem(item)
+        }
+        let gliding = NSMenuItem(title: "Glide On", action: nil, keyEquivalent: "")
+        gliding.submenu = glides
+        gliding.isEnabled = walks
+        gliding.indentationLevel = 1
+        menu.addItem(gliding)
         if walks || odometer.meters > 0 {
             let walked = NSMenuItem(
                 title: "Walked \(Self.distance(odometer.meters))", action: nil, keyEquivalent: "")
@@ -279,6 +313,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         format.minimumFractionDigits = 1
         format.maximumFractionDigits = 1
         return "\(format.string(from: NSNumber(value: meters)) ?? String(meters)) m"
+    }
+
+    @objc private func chooseGlide(_ item: NSMenuItem) {
+        if let choice = (item.representedObject as? String).flatMap(Walk.Glide.init) {
+            glide = choice
+        }
     }
 
     @objc private func toggleWalk() {

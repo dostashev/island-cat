@@ -152,3 +152,63 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     #expect(abs(Walk.whiskerTilt(phase: 0.0, reach: 1) + 5) < 1e-9)
     #expect(Walk.whiskerTilt(phase: 0.5, reach: 0) == 0)
 }
+
+/// Gliding, the wheels reach no lower than the walking feet do, inside the
+/// menu bar; the toes point the way it glides and the skates sit apart;
+/// tucked away, they shrink into the hips.
+@Test(arguments: [proled, notched], [true, false])
+func skatesStandBelowTheMenuBarAndTuckIntoTheHips(screen: ScreenShape, right: Bool) throws {
+    let island = try #require(Island.on(screen))
+    let floor = Walk.floor(on: island)
+    let standing = Walk.skates(reach: 1, floor: floor, facingRight: right)
+    let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
+    for skate in standing {
+        for wheel in skate.wheels {
+            #expect(abs(wheel.y + skate.wheelRadius - floor) < 1e-9)
+            let bottom = placement.point(CGPoint(x: wheel.x, y: wheel.y + skate.wheelRadius))
+            #expect(bottom.y + island.canvas.minY >= island.band.minY)
+        }
+        let toe = skate.boot.map(\.x).max(by: { right ? $0 < $1 : $0 > $1 })!
+        #expect(right ? toe > skate.hip.x : toe < skate.hip.x)
+    }
+    for (a, b) in zip(standing, standing.dropFirst()) {
+        let aRight = (a.boot.map(\.x) + [a.plate.maxX]).max()!
+        let bLeft = (b.boot.map(\.x) + [b.plate.minX]).min()!
+        #expect(aRight < bLeft)
+    }
+    for skate in Walk.skates(reach: 0, floor: floor, facingRight: right) {
+        #expect(skate.boot.allSatisfy { $0 == skate.hip })
+        #expect(skate.wheelRadius == 0)
+    }
+}
+
+/// Gliding, the cat stands on straight legs, its whiskers level.
+@Test(arguments: [0.03, -0.07, 0.11])
+func glidingStandsOnStraightLegs(slid: Double) {
+    var stride = Walk.Stride()
+    stride.follow(slid, elapsed: 0.1)
+    stride.stand()
+    #expect(stride.isStraight)
+    #expect(abs(Walk.whiskerTilt(phase: stride.phase, reach: 1)) < 1e-9)
+}
+
+/// The skateboard's wheels stand where the walking feet reach, inside the
+/// menu bar; the deck fits the cat's window; tucked away, the board shrinks
+/// into the body.
+@Test(arguments: [proled, notched])
+func skateboardStandsOnTheFloorAndTucksAway(screen: ScreenShape) throws {
+    let island = try #require(Island.on(screen))
+    let floor = Walk.floor(on: island)
+    let board = Walk.skateboard(reach: 1, floor: floor)
+    for wheel in board.wheels { #expect(abs(wheel.y + board.wheelRadius - floor) < 1e-9) }
+    let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
+    for point in board.deck {
+        let p = placement.point(point)
+        #expect(p.x >= 0 && p.x <= island.canvas.width)
+        #expect(p.y + island.canvas.minY >= island.band.minY)
+    }
+    for leg in board.legs { #expect(leg.foot.x == leg.hip.x && leg.foot.y > leg.hip.y) }
+    let tucked = Walk.skateboard(reach: 0, floor: floor)
+    #expect(Set(tucked.deck.map(\.x)).count == 1)
+    #expect(tucked.wheelRadius == 0)
+}

@@ -158,6 +158,12 @@ public enum Walk {
             return abs(half - half.rounded()) < 1e-9
         }
 
+        /// Stands on straight legs at once, at the nearest straight pose.
+        public mutating func stand() {
+            let half = (position - 0.25) * 2
+            position = half.rounded() / 2 + 0.25
+        }
+
         /// The desktops have stopped: carries on the way it was going to
         /// the next straight-legged pose, for `elapsed` seconds.
         public mutating func finish(elapsed: Double) {
@@ -176,18 +182,127 @@ public enum Walk {
         5 * sin(2 * .pi * (phase - 0.25)) * min(1, max(0, reach))
     }
 
+    static let hipY: CGFloat = 28
+    /// Front and back pairs, across the body; diagonal legs step together.
+    static let legPlaces: [(x: CGFloat, offset: Double)] = [(12, 0), (23, 0.5), (44, 0), (55, 0.5)]
+
+    /// A roller skate under one foot, seen from the side, in art units.
+    public struct Skate: Sendable, Equatable {
+        public var hip: CGPoint
+        /// Where the leg meets the boot.
+        public var foot: CGPoint
+        /// The boot's outline: a high top at the heel, a toe pointing the
+        /// way the cat glides.
+        public var boot: [CGPoint]
+        /// The plate under the boot that holds the wheels.
+        public var plate: CGRect
+        public var wheels: [CGPoint]
+        public var wheelRadius: CGFloat
+    }
+
+    /// The lowest the cat's feet reach, in art units, with the round ends
+    /// of the legs: the skates' wheels stand there too.
+    public static func floor(on island: Island) -> CGFloat {
+        ground(on: island) + legWidth / 2 / (island.body.height / Cat.box.height)
+    }
+
+    /// The cat on roller skates, gliding: every leg straight down into a
+    /// black high-top boot on two wheels, the wheels standing on `floor`,
+    /// the toes pointing right or left. `reach` of the way out, the skates
+    /// shrink back into the hips as the legs tuck away.
+    public static func skates(reach: Double, floor: CGFloat, facingRight: Bool) -> [Skate] {
+        let r = CGFloat(min(1, max(0, reach)))
+        let wheel: CGFloat = 1.5
+        let plateTop = floor - 2 * wheel - 0.6
+        let top: CGFloat = 33
+        let length: CGFloat = 8.5
+        let toward: CGFloat = facingRight ? 1 : -1
+        return legPlaces.map { leg in
+            let hip = CGPoint(x: leg.x, y: hipY)
+            // Toward the hips by `1 - r`.
+            func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                CGPoint(x: hip.x + (leg.x + toward * x - hip.x) * r, y: hip.y + (y - hip.y) * r)
+            }
+            let heel = -length * 0.45
+            let toe = length * 0.55
+            let boot = [
+                at(heel, plateTop), at(heel, top), at(length * 0.08, top),
+                at(length * 0.12, plateTop - 2.6), at(toe - 1.4, plateTop - 2.2),
+                at(toe, plateTop - 0.8), at(toe, plateTop),
+            ]
+            let plateCorners = [at(heel - 0.3, plateTop), at(toe + 0.3, plateTop + 0.9)]
+            let plate = CGRect(
+                x: min(plateCorners[0].x, plateCorners[1].x), y: plateCorners[0].y,
+                width: abs(plateCorners[1].x - plateCorners[0].x),
+                height: plateCorners[1].y - plateCorners[0].y)
+            let axle = floor - wheel
+            return Skate(
+                hip: hip, foot: at(0, top), boot: boot, plate: plate,
+                wheels: [at(heel + 0.4 + wheel, axle), at(toe - 0.4 - wheel, axle)],
+                wheelRadius: wheel * r)
+        }
+    }
+
+    /// What the cat glides on while the desktops finish sliding, when
+    /// macOS does not draw it: something to stand on, frozen mid-glide.
+    public enum Glide: String, Sendable, CaseIterable {
+        /// It tucks its legs away and stands still.
+        case none
+        case skates
+        case skateboard
+    }
+
+    /// A skateboard under the cat, seen from the side, in art units.
+    public struct Board: Sendable, Equatable {
+        /// Each leg, from the hip straight down to the deck.
+        public var legs: [(hip: CGPoint, foot: CGPoint)]
+        /// The deck's outline: flat in the middle, kicked up at both ends.
+        public var deck: [CGPoint]
+        public var wheels: [CGPoint]
+        public var wheelRadius: CGFloat
+
+        public static func == (a: Board, b: Board) -> Bool {
+            a.deck == b.deck && a.wheels == b.wheels && a.wheelRadius == b.wheelRadius
+                && a.legs.map(\.hip) == b.legs.map(\.hip) && a.legs.map(\.foot) == b.legs.map(\.foot)
+        }
+    }
+
+    /// The cat standing on a skateboard, every leg straight down onto the
+    /// deck, its wheels on `floor`. `reach` of the way out, the board
+    /// shrinks back into the body as the legs tuck away.
+    public static func skateboard(reach: Double, floor: CGFloat) -> Board {
+        let r = CGFloat(min(1, max(0, reach)))
+        let middle = CGPoint(x: Cat.box.width / 2, y: hipY)
+        func at(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: middle.x + (x - middle.x) * r, y: middle.y + (y - middle.y) * r)
+        }
+        let wheel: CGFloat = 1.6
+        let deckBottom = floor - 2 * wheel - 0.3
+        let deckTop = deckBottom - 2
+        let (nose, tail): (CGFloat, CGFloat) = (5, Cat.box.width - 5)
+        let kick: CGFloat = 2.4
+        // Around the outline: along the top, up the kicked tail, back along
+        // the bottom and up the nose.
+        let deck = [
+            at(nose + 4, deckTop), at(tail - 4, deckTop), at(tail, deckTop - kick),
+            at(tail + 0.6, deckTop - kick + 1.1), at(tail - 3.6, deckBottom),
+            at(nose + 3.6, deckBottom), at(nose - 0.6, deckTop - kick + 1.1), at(nose, deckTop - kick),
+        ]
+        let axle = floor - wheel
+        return Board(
+            legs: legPlaces.map { (at($0.x, hipY), at($0.x, deckTop)) },
+            deck: deck, wheels: [at(nose + 8, axle), at(tail - 8, axle)], wheelRadius: wheel * r)
+    }
+
     /// The legs, in art units: hips inside the body, feet on the ground
     /// under it at `ground`. `phase` runs 0..<1 over one step; `reach` from
     /// 0 (tucked into the body) to 1 (standing).
     public static func legs(
         phase: Double, reach: Double, ground groundY: CGFloat = 42
     ) -> [(hip: CGPoint, foot: CGPoint)] {
-        let hipY: CGFloat = 28
         let stride: CGFloat = 5
         let lift: CGFloat = 3
-        // Front and back pairs; diagonal legs step together.
-        let legs: [(x: CGFloat, offset: Double)] = [(12, 0), (23, 0.5), (44, 0), (55, 0.5)]
-        return legs.map { leg in
+        return legPlaces.map { leg in
             let p = (phase + leg.offset).truncatingRemainder(dividingBy: 1)
             // On the ground the foot pushes back, against the way the cat
             // walks; in the air it swings forward again. Phase running
@@ -202,8 +317,8 @@ public enum Walk {
                 up = lift * CGFloat(sin(.pi * (p - 0.5) * 2))
             }
             let r = CGFloat(min(1, max(0, reach)))
-            let hip = CGPoint(x: leg.x, y: hipY)
-            let foot = CGPoint(x: leg.x + x * r, y: hipY + (groundY - up - hipY) * r)
+            let hip = CGPoint(x: leg.x, y: Self.hipY)
+            let foot = CGPoint(x: leg.x + x * r, y: Self.hipY + (groundY - up - Self.hipY) * r)
             return (hip, foot)
         }
     }

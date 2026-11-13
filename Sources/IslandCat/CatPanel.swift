@@ -19,8 +19,10 @@ final class CatPanel: NSPanel {
     private var petting = Petting()
     private lazy var bubble = Bubble(animates: animates)
     private var lastReply: (text: String, at: Double)?
-    /// Legs, out only while the cat walks.
+    /// Legs, out only while the cat walks, and roller skates under them
+    /// while it glides.
     private let legs = CAShapeLayer()
+    private let skates = CAShapeLayer()
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
     private let tailSide = CALayer()
 
@@ -63,6 +65,9 @@ final class CatPanel: NSPanel {
         legs.lineWidth = Walk.legWidth
         legs.lineCap = .round
         view.layer?.addSublayer(legs)
+        skates.contentsScale = scale
+        skates.fillColor = NSColor.black.cgColor
+        view.layer?.addSublayer(skates)
         tailSide.anchorPoint = CGPoint(
             x: (island.body.midX - canvas.minX) / canvas.width, y: 0.5)
         tailSide.frame = CGRect(origin: .zero, size: canvas.size)
@@ -129,12 +134,57 @@ final class CatPanel: NSPanel {
     }
 
     /// Poses the legs `phase` of the way through a step, `reach` of the
-    /// way out of the body, and the whiskers with them.
-    func walk(phase: Double, reach: Double) {
+    /// way out of the body, and the whiskers with them; or, while gliding
+    /// (facing right or not), straight down on what it glides on.
+    func walk(phase: Double, reach: Double, gliding: (on: Walk.Glide, facingRight: Bool)?) {
         let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
+        let ground = Walk.ground(on: island)
         let path = CGMutablePath()
-        if reach > 0 {
-            for leg in Walk.legs(phase: phase, reach: reach, ground: Walk.ground(on: island)) {
+        let skatePath = CGMutablePath()
+        if reach > 0, let gliding, gliding.on == .skateboard {
+            let board = Walk.skateboard(reach: reach, floor: Walk.floor(on: island))
+            for leg in board.legs {
+                path.move(to: placement.point(leg.hip))
+                path.addLine(to: placement.point(leg.foot))
+            }
+            skatePath.addLines(between: board.deck.map(placement.point))
+            skatePath.closeSubpath()
+            let radius = board.wheelRadius * placement.scale
+            for wheel in board.wheels {
+                let center = placement.point(wheel)
+                skatePath.addEllipse(
+                    in: CGRect(
+                        x: center.x - radius, y: center.y - radius, width: 2 * radius,
+                        height: 2 * radius))
+            }
+        } else if reach > 0, let gliding, gliding.on == .skates {
+            for skate in Walk.skates(
+                reach: reach, floor: Walk.floor(on: island), facingRight: gliding.facingRight)
+            {
+                path.move(to: placement.point(skate.hip))
+                path.addLine(to: placement.point(skate.foot))
+                skatePath.addLines(between: skate.boot.map(placement.point))
+                skatePath.closeSubpath()
+                let corners = [
+                    placement.point(skate.plate.origin),
+                    placement.point(CGPoint(x: skate.plate.maxX, y: skate.plate.maxY)),
+                ]
+                let plate = CGRect(
+                    x: min(corners[0].x, corners[1].x), y: min(corners[0].y, corners[1].y),
+                    width: abs(corners[1].x - corners[0].x), height: abs(corners[1].y - corners[0].y))
+                skatePath.addRoundedRect(
+                    in: plate, cornerWidth: plate.height / 2, cornerHeight: plate.height / 2)
+                let radius = skate.wheelRadius * placement.scale
+                for wheel in skate.wheels {
+                    let center = placement.point(wheel)
+                    skatePath.addEllipse(
+                        in: CGRect(
+                            x: center.x - radius, y: center.y - radius, width: 2 * radius,
+                            height: 2 * radius))
+                }
+            }
+        } else if reach > 0 {
+            for leg in Walk.legs(phase: phase, reach: reach, ground: ground) {
                 path.move(to: placement.point(leg.hip))
                 path.addLine(to: placement.point(leg.foot))
             }
@@ -145,6 +195,7 @@ final class CatPanel: NSPanel {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         legs.path = path
+        skates.path = skatePath
         for piece in pieces {
             switch piece.part.name {
             case "left whiskers":
