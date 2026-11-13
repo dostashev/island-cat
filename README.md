@@ -24,8 +24,12 @@ With [Homebrew](https://brew.sh):
 
 ```sh
 brew tap dostashev/island-cat https://github.com/dostashev/island-cat
+brew trust dostashev/island-cat
 brew install --cask island-cat
 ```
+
+Homebrew only loads casks from taps outside its own once you trust them;
+`brew trust` does that for this one.
 
 Or download `Island-Cat-<version>.zip` from the
 [latest release](https://github.com/dostashev/island-cat/releases/latest),
