@@ -141,7 +141,7 @@ final class CatPanel: NSPanel {
 
     /// The cat says something once the pointer has rested on it this long,
     /// and again each time as long again while it stays.
-    static let petAfter = 5.0
+    static let petAfter = 3.0
 
     private func onCat(_ location: NSPoint) -> Bool {
         (grown ? island.hovered(toward: location) : island.body).contains(location)
