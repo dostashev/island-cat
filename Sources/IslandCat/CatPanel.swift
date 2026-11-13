@@ -14,9 +14,7 @@ final class CatPanel: NSPanel {
     /// A change of `grown` waiting for the system's island to start it.
     private var pending: Task<Void, Never>?
     private var pointer = NSPoint.zero
-    /// Stroking the pointer back and forth over the cat pets it, and it
-    /// says something.
-    private var petting = Petting()
+    /// The pointer over the cat pets it, and it says something.
     private lazy var bubble = Bubble(animates: animates)
     private var lastReply: (text: String, at: Double)?
     /// Legs, out only while the cat walks, and roller skates under them
@@ -141,13 +139,10 @@ final class CatPanel: NSPanel {
 
     private func pet(at location: NSPoint) {
         let cat = grown ? island.hovered(toward: location) : island.body
-        guard cat.contains(location) else {
-            petting.reset()
-            return
-        }
+        guard cat.contains(location) else { return }
         let now = CACurrentMediaTime()
-        guard petting.stroke(x: location.x, at: now) else { return }
-        // One thing at a time.
+        // One thing at a time: while the pointer stays on the cat, it says
+        // something again once the last bubble is gone.
         if let lastReply, now - lastReply.at < Bubble.shown + 0.4 { return }
         let reply = Petting.reply(after: lastReply?.text, random: Double.random(in: 0..<1))
         lastReply = (reply, now)
