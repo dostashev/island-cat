@@ -105,13 +105,13 @@ final class CatPanel: NSPanel {
         }
     }
 
-    /// Poses the legs `phase` of the way through a step, striding
-    /// `stepping` of a full stride, `reach` of the way out of the body.
-    func walk(phase: Double, stepping: Double, reach: Double) {
+    /// Poses the legs `phase` of the way through a step, `reach` of the
+    /// way out of the body.
+    func walk(phase: Double, reach: Double) {
         let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
         let path = CGMutablePath()
         if reach > 0 {
-            for leg in Walk.legs(phase: phase, stepping: stepping, reach: reach) {
+            for leg in Walk.legs(phase: phase, reach: reach) {
                 path.move(to: placement.point(leg.hip))
                 path.addLine(to: placement.point(leg.foot))
             }

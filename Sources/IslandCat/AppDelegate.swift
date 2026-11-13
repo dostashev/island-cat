@@ -28,8 +28,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
     private var reach = 0.0
-    /// How much of a full stride the cat takes, 0 to 1.
-    private var stepping = 0.0
     private var lastMoved = 0.0
     private var walkTimer: Timer?
 
@@ -91,31 +89,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         stepWalk()
     }
 
-    /// The legs come out while the desktops slide; once they stop the cat
-    /// stands still on straight legs, then tucks them away. The tail
-    /// trails behind the way the fingers go, and goes back to its place
-    /// once the legs are tucked away.
+    /// The legs come out while the desktops slide and tuck away once they
+    /// stop. The tail trails behind the way the fingers go, and goes back
+    /// to its place once the legs are tucked away.
     private func stepWalk() {
         let now = CACurrentMediaTime()
         if slide.advance(to: now) { lastMoved = now }
-        if now - lastMoved < 0.1 {
-            reach = min(1, reach + 1.0 / 12)
-            stepping = min(1, stepping + 1.0 / 12)
-        } else if stepping > 0 {
-            stepping = max(0, stepping - 1.0 / 15)
-        } else {
-            reach = max(0, reach - 1.0 / 18)
-        }
+        let moving = now - lastMoved < 0.1
+        reach = moving ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
         // Only the fingers turn the cat; the system's slide after they
         // lift, even springing back, does not.
         if !slide.isSettling { _ = heading.follow(slide.offset) }
-        let done = reach == 0 && stepping == 0
+        let done = reach == 0 && !moving
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
         let phase = Walk.phase(slide.offset)
         for panel in panels {
-            panel.walk(phase: phase, stepping: stepping, reach: reach)
+            panel.walk(phase: phase, reach: reach)
             if turned { panel.tail(onLeft: left) }
         }
         if done {

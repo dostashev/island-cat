@@ -69,21 +69,9 @@ func feetOnTheGroundPushBackAgainstTheWalk(from: Double, to: Double, right: Bool
 }
 
 @Test func tuckedLegsStayInTheBody() {
-    for leg in Walk.legs(phase: 0.3, stepping: 0, reach: 0) {
+    for leg in Walk.legs(phase: 0.3, reach: 0) {
         #expect(leg.foot == leg.hip)
     }
-}
-
-/// Stopping, the cat stands on straight legs, feet apart under its hips,
-/// wherever it was in its stride.
-@Test(arguments: [0.0, 0.25, 0.5, 0.8])
-func standingStillPutsTheFeetUnderTheHips(phase: Double) {
-    let legs = Walk.legs(phase: phase, stepping: 0, reach: 1)
-    for leg in legs {
-        #expect(leg.foot.x == leg.hip.x)
-        #expect(leg.foot.y > leg.hip.y)
-    }
-    #expect(Set(legs.map(\.foot.y)).count == 1)
 }
 
 /// Standing, the feet stay inside the cat's window, under the menu bar.

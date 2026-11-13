@@ -99,23 +99,21 @@ public enum Walk {
     /// steps forward as they slide right, the way it walks then, and back
     /// as they slide left. A desktop at rest is a quarter of the way into
     /// a step, where every leg stands straight under its hip, half of them
-    /// on the ground and half mid-swing, so a walk starts and ends there.
+    /// on the ground and half mid-swing, so a walk starts and ends there
+    /// and the legs tuck straight up into the body.
     public static func phase(_ offset: Double) -> Double {
         let steps = offset * stepsPerDesktop + 0.25
         return steps - steps.rounded(.down)
     }
 
     /// The legs, in art units: hips inside the body, feet on the ground
-    /// under it. `phase` runs 0..<1 over one step; `stepping` from 0 (legs
-    /// straight down, feet under the hips) to 1 (a full stride); `reach`
-    /// from 0 (tucked into the body) to 1 (standing).
-    public static func legs(
-        phase: Double, stepping: Double = 1, reach: Double
-    ) -> [(hip: CGPoint, foot: CGPoint)] {
+    /// under it. `phase` runs 0..<1 over one step; `reach` from 0 (tucked
+    /// into the body) to 1 (standing).
+    public static func legs(phase: Double, reach: Double) -> [(hip: CGPoint, foot: CGPoint)] {
         let hipY: CGFloat = 28
         let groundY: CGFloat = 42
-        let stride: CGFloat = 5 * CGFloat(min(1, max(0, stepping)))
-        let lift: CGFloat = 3 * CGFloat(min(1, max(0, stepping)))
+        let stride: CGFloat = 5
+        let lift: CGFloat = 3
         // Front and back pairs; diagonal legs step together.
         let legs: [(x: CGFloat, offset: Double)] = [(12, 0), (23, 0.5), (44, 0), (55, 0.5)]
         return legs.map { leg in
@@ -134,7 +132,7 @@ public enum Walk {
             }
             let r = CGFloat(min(1, max(0, reach)))
             let hip = CGPoint(x: leg.x, y: hipY)
-            let foot = CGPoint(x: leg.x + x, y: hipY + (groundY - up - hipY) * r)
+            let foot = CGPoint(x: leg.x + x * r, y: hipY + (groundY - up - hipY) * r)
             return (hip, foot)
         }
     }
