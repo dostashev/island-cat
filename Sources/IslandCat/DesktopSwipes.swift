@@ -102,32 +102,13 @@ final class DesktopSwipes {
 
     private func reenable(_ type: CGEventType) {
         Self.log.error("Desktop swipe tap switched off (\(type.rawValue)); switching it back on")
-        WalkTrace.shared.write("tapOff", type.rawValue)
         if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
-
-    /// Mach ticks to seconds, for event timestamps.
-    private static let tick: Double = {
-        var base = mach_timebase_info_data_t()
-        mach_timebase_info(&base)
-        return Double(base.numer) / Double(base.denom) / 1e9
-    }()
 
     private func handle(_ event: CGEvent) {
         let kind = event.getIntegerValueField(Self.kindField)
         let phase = event.getIntegerValueField(Self.phaseField)
         let progress = event.getDoubleValueField(Self.progressField)
-        if WalkTrace.shared.enabled {
-            // How long ago the event happened, reading its timestamp both
-            // as nanoseconds and as mach ticks.
-            let now = CACurrentMediaTime()
-            let stamp = Double(event.timestamp)
-            WalkTrace.shared.write(
-                "event", kind, phase, progress, now - stamp / 1e9, now - stamp * Self.tick)
-        }
-        if phase != 2 {
-            Self.log.notice("Dock gesture kind \(kind) phase \(phase) progress \(progress)")
-        }
         guard kind == Self.horizontalSwipe else { return }
         switch phase {
         case 1, 2:

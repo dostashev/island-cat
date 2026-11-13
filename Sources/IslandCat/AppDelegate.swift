@@ -70,7 +70,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
         placeCats()
-        if WalkTrace.shared.enabled { WalkTrace.shared.flush() }
         if walks { _ = swipes.start() }
     }
 
@@ -85,7 +84,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
-            WalkTrace.shared.write("lift", progress, velocity)
             let screen = panels.first?.screen ?? NSScreen.main
             let neighbors = screen.map(DesktopSwipes.neighbors) ?? (left: true, right: true)
             slide.lift(
@@ -111,7 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// to its place once the legs are tucked away.
     @objc private func stepWalk() {
         let now = CACurrentMediaTime()
-        let sincePrevious = now - (lastStep ?? now)
         // By the clock, not the frame count, so a slow frame does not slow
         // the legs: out in 0.1 s, tucked away in 0.15 s.
         let elapsed = min(0.05, now - (lastStep ?? now))
@@ -155,16 +152,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.walk(phase: phase, reach: reach)
             if turned { panel.tail(onLeft: left) }
         }
-        WalkTrace.shared.write(
-            "frame", sincePrevious, slide.offset, reach, slide.isSettling ? 1 : 0,
-            CACurrentMediaTime() - now, stride.phase)
         if done {
             walkTimer?.invalidate()
             walkTimer = nil
             lastStep = nil
             lastFrameOffset = nil
-            WalkTrace.shared.write("done")
-            WalkTrace.shared.flush()
             if let walkActivity { ProcessInfo.processInfo.endActivity(walkActivity) }
             walkActivity = nil
             defaults.set(odometer.meters, forKey: "metersWalked")
