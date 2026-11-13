@@ -14,9 +14,11 @@ done
 
 app="build/Island Cat.app"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 lipo -create -output "$app/Contents/MacOS/IslandCat" "${slices[@]}"
 cp Resources/Info.plist "$app/Contents/Info.plist"
+# scripts/make-icon.sh redraws it.
+cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 # A stable identity keeps permissions such as Input Monitoring across
 # rebuilds; ad-hoc signatures change with every build.
 # scripts/make-signing-identity.sh creates one.

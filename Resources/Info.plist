@@ -8,6 +8,8 @@
 	<string>IslandCat</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.dostashev.IslandCat</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleName</key>
 	<string>Island Cat</string>
 	<key>CFBundleDisplayName</key>
