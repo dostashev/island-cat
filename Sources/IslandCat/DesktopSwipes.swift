@@ -18,6 +18,7 @@ final class DesktopSwipes {
     private let changed: (Change) -> Void
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
+    private var waiting: Timer?
 
     /// The Dock's gesture events, and the fields that carry the swipe.
     private static let dockGesture: UInt32 = 30
@@ -35,6 +36,13 @@ final class DesktopSwipes {
     /// after asking for it.
     func start() -> Bool {
         guard tap == nil else { return true }
+        // Without the permission a tap is still created but sees nothing.
+        guard CGPreflightListenEventAccess() else {
+            Self.log.notice("No Input Monitoring permission; asking for it")
+            CGRequestListenEventAccess()
+            waitForAccess()
+            return false
+        }
         let mask = CGEventMask(1) << CGEventMask(Self.dockGesture)
         guard
             let tap = CGEvent.tapCreate(
@@ -49,30 +57,51 @@ final class DesktopSwipes {
                 },
                 userInfo: Unmanaged.passUnretained(self).toOpaque())
         else {
-            Logger(subsystem: "com.dostashev.IslandCat", category: "swipes")
-                .notice("No Input Monitoring permission; asking for it")
-            CGRequestListenEventAccess()
+            Self.log.error("Could not listen to desktop swipes")
             return false
         }
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         self.tap = tap
         self.source = source
-        Logger(subsystem: "com.dostashev.IslandCat", category: "swipes").notice("Following desktop swipes")
+        Self.log.notice("Following desktop swipes")
         return true
     }
 
+    /// Starts listening as soon as the permission is granted in System
+    /// Settings, checking every two seconds.
+    private func waitForAccess() {
+        waiting?.invalidate()
+        waiting = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, CGPreflightListenEventAccess() else { return }
+                self.waiting?.invalidate()
+                self.waiting = nil
+                _ = self.start()
+            }
+        }
+    }
+
     func stop() {
+        waiting?.invalidate()
+        waiting = nil
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil
         source = nil
     }
 
+    private static let log = Logger(subsystem: "com.dostashev.IslandCat", category: "swipes")
+
     private func handle(_ event: CGEvent) {
-        guard event.getIntegerValueField(Self.kindField) == Self.horizontalSwipe else { return }
+        let kind = event.getIntegerValueField(Self.kindField)
+        let phase = event.getIntegerValueField(Self.phaseField)
         let progress = event.getDoubleValueField(Self.progressField)
-        switch event.getIntegerValueField(Self.phaseField) {
+        if phase != 2 {
+            Self.log.notice("Dock gesture kind \(kind) phase \(phase) progress \(progress)")
+        }
+        guard kind == Self.horizontalSwipe else { return }
+        switch phase {
         case 1, 2:
             changed(.moved(progress: progress))
         case 4, 8:

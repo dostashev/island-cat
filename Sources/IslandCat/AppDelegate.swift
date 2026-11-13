@@ -193,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             alert.informativeText =
                 "To follow your swipe as it happens, Island Cat listens to the trackpad's "
                 + "desktop-swipe gesture. Turn on Island Cat in System Settings › Privacy & "
-                + "Security › Input Monitoring, then reopen Island Cat."
+                + "Security › Input Monitoring; the cat starts moonwalking as soon as it's on."
             alert.runModal()
         }
     }
