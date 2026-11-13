@@ -33,8 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var walkTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = CatIcon.image()
+        // As wide as the icon: macOS already spaces every item 8 pt from
+        // its neighbors, and anything wider only adds to that.
+        let icon = CatIcon.image()
+        let item = NSStatusBar.system.statusItem(withLength: icon.size.width)
+        item.button?.image = icon
         let menu = NSMenu()
         menu.delegate = self
         item.menu = menu

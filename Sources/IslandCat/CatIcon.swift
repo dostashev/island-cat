@@ -6,16 +6,24 @@ import AppKit
 /// down from the cat, whose long whiskers and tail would make it too wide.
 enum CatIcon {
     static func image() -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 16), flipped: true) { _ in
+        // Sized to fill the menu bar's icon height, the body centered.
+        let height: CGFloat = 18
+        let body = CGSize(width: 14.8, height: 11.4)
+        let scale = body.width / 67
+        let earRise = 8 * scale
+        let tailDrop: CGFloat = 1.6
+        let side: CGFloat = 3.6
+        let size = NSSize(width: body.width + 2 * side, height: height)
+        let image = NSImage(size: size, flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            // Points, y down; the drawing spans y 5.2 to 14.4; center it.
-            context.translateBy(x: 0, y: -1.8)
+            // Points, y down.
             context.setFillColor(.black)
             context.setStrokeColor(.black)
             context.setLineCap(.round)
             context.setLineJoin(.round)
 
-            let body = CGRect(x: 2.5, y: 6.8, width: 13, height: 7.6)
+            let top = (height - (earRise + body.height + tailDrop)) / 2 + earRise
+            let body = CGRect(origin: CGPoint(x: side, y: top), size: body)
             context.addPath(
                 CGPath(
                     roundedRect: body, cornerWidth: body.height / 2, cornerHeight: body.height / 2,
@@ -24,7 +32,6 @@ enum CatIcon {
 
             // The cat's own ears, scaled to the body, standing a little
             // taller so they read at this size.
-            let scale = body.width / 67
             for mirrored in [false, true] {
                 let ear = [(4.0, 13.0), (5, -4), (22, 1), (24, 8)].map { u, v in
                     CGPoint(
@@ -37,14 +44,27 @@ enum CatIcon {
             }
 
             // Three whiskers a side, fanning out like the cat's.
-            context.setLineWidth(0.75)
-            for (from, to) in [
-                ((1.7, 9.0), (0.2, 8.2)), ((1.7, 10.6), (0.1, 10.6)), ((1.7, 12.2), (0.2, 13.0)),
-                ((16.3, 9.0), (17.8, 8.2)), ((16.3, 10.6), (17.9, 10.6)), ((16.3, 12.2), (17.8, 13.0)),
-            ] {
-                context.move(to: CGPoint(x: from.0, y: from.1))
-                context.addLine(to: CGPoint(x: to.0, y: to.1))
+            context.setLineWidth(0.85)
+            for (rise, spread) in [(-2.0, -2.9), (0.0, 0.0), (2.0, 2.9)] {
+                context.move(to: CGPoint(x: body.minX - 0.8, y: body.midY + rise))
+                context.addLine(to: CGPoint(x: body.minX - side + 0.5, y: body.midY + spread))
+                context.move(to: CGPoint(x: body.maxX + 0.8, y: body.midY + rise))
+                context.addLine(to: CGPoint(x: body.maxX + side - 0.5, y: body.midY + spread))
             }
+            context.strokePath()
+
+            // A short tail, hooking up under the whiskers.
+            context.setLineWidth(1.5)
+            let right = body.maxX
+            context.move(to: CGPoint(x: right - 3.5, y: body.maxY - 0.6))
+            context.addCurve(
+                to: CGPoint(x: right + 2.2, y: body.maxY + 0.2),
+                control1: CGPoint(x: right - 1, y: body.maxY + 1.1),
+                control2: CGPoint(x: right + 1.3, y: body.maxY + 1.1))
+            context.addCurve(
+                to: CGPoint(x: right + 2.8, y: body.maxY - 1.6),
+                control1: CGPoint(x: right + 2.8, y: body.maxY - 0.4),
+                control2: CGPoint(x: right + 2.9, y: body.maxY - 1.0))
             context.strokePath()
             return true
         }
