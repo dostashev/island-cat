@@ -105,8 +105,8 @@ public enum Walk {
     }
 
     /// How far the cat has walked: as far as the desktops have slid under
-    /// it, every way they went, on a screen `width` meters wide. A swipe on
-    /// to the next desktop is a screen's width; one that springs back is
+    /// it, every way they went, with the desktops `width` meters apart. A
+    /// swipe on to the next desktop is that far; one that springs back is
     /// twice as far as it got; swiping back and forth counts every stroke.
     public struct Odometer: Sendable {
         public private(set) var meters: Double
@@ -116,8 +116,7 @@ public enum Walk {
             self.meters = meters
         }
 
-        /// The desktops are at `offset` desktop widths on a screen `width`
-        /// meters wide.
+        /// The desktops are at `offset` desktop widths, `width` meters apart.
         public mutating func follow(_ offset: Double, width: Double) {
             if let last { meters += abs(offset - last) * width }
             last = offset

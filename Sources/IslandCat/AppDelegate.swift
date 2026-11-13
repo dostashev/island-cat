@@ -149,7 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
-        odometer.follow(slide.offset, width: screenWidth)
+        odometer.follow(slide.offset, width: desktopPitch)
         let phase = stride.phase
         for panel in panels {
             panel.walk(phase: phase, reach: reach)
@@ -171,13 +171,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// The width of the screen the cat walks on, in meters, as the display
-    /// reports it; 34.6 cm (the 16-inch MacBook Pro) when it does not.
-    private var screenWidth: Double {
-        let number = panels.first?.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
-        guard let id = number as? CGDirectDisplayID else { return 0.346 }
+    /// How far apart the desktops are as they slide, in meters: the width
+    /// of the screen the cat walks on, as the display reports it, and the
+    /// 64 pt black gap macOS leaves between desktops (measured from a
+    /// screenshot mid-swipe, 12.7 mm on the 16-inch MacBook Pro). 35.9 cm,
+    /// that MacBook's, when the display does not report its size.
+    private var desktopPitch: Double {
+        let gap: CGFloat = 64
+        guard let screen = panels.first?.screen,
+            let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
+                as? CGDirectDisplayID
+        else { return 0.359 }
         let millimeters = CGDisplayScreenSize(id).width
-        return millimeters > 0 ? millimeters / 1000 : 0.346
+        guard millimeters > 0 else { return 0.359 }
+        return millimeters * (1 + gap / screen.frame.width) / 1000
     }
 
     private func pointerMoved() {
