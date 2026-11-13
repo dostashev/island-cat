@@ -53,7 +53,7 @@ final class CatPanel: NSPanel {
         legs.contentsScale = scale
         legs.strokeColor = NSColor.black.cgColor
         legs.fillColor = nil
-        legs.lineWidth = 2
+        legs.lineWidth = Walk.legWidth
         legs.lineCap = .round
         view.layer?.addSublayer(legs)
         tailSide.anchorPoint = CGPoint(
@@ -111,7 +111,7 @@ final class CatPanel: NSPanel {
         let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
         let path = CGMutablePath()
         if reach > 0 {
-            for leg in Walk.legs(phase: phase, reach: reach) {
+            for leg in Walk.legs(phase: phase, reach: reach, ground: Walk.ground(on: island)) {
                 path.move(to: placement.point(leg.hip))
                 path.addLine(to: placement.point(leg.foot))
             }

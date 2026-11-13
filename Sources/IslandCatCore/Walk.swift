@@ -92,6 +92,18 @@ public enum Walk {
         }
     }
 
+    /// How thick the legs are drawn, in points.
+    public static let legWidth: CGFloat = 2
+
+    /// The ground under the cat on `island`, in art units: as low as the
+    /// menu bar goes, so that the feet never stick out below it. A
+    /// full-screen app paints the band black and starts right under it.
+    public static func ground(on island: Island) -> CGFloat {
+        let scale = island.body.height / Cat.box.height
+        let room = island.body.maxY - island.band.minY - legWidth / 2 - 0.5
+        return min(42, room / scale)
+    }
+
     /// Steps the cat takes while the desktops slide one desktop width.
     public static let stepsPerDesktop = 5.0
 
@@ -107,11 +119,12 @@ public enum Walk {
     }
 
     /// The legs, in art units: hips inside the body, feet on the ground
-    /// under it. `phase` runs 0..<1 over one step; `reach` from 0 (tucked
-    /// into the body) to 1 (standing).
-    public static func legs(phase: Double, reach: Double) -> [(hip: CGPoint, foot: CGPoint)] {
+    /// under it at `ground`. `phase` runs 0..<1 over one step; `reach` from
+    /// 0 (tucked into the body) to 1 (standing).
+    public static func legs(
+        phase: Double, reach: Double, ground groundY: CGFloat = 42
+    ) -> [(hip: CGPoint, foot: CGPoint)] {
         let hipY: CGFloat = 28
-        let groundY: CGFloat = 42
         let stride: CGFloat = 5
         let lift: CGFloat = 3
         // Front and back pairs; diagonal legs step together.

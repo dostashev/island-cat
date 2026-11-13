@@ -74,16 +74,17 @@ func feetOnTheGroundPushBackAgainstTheWalk(from: Double, to: Double, right: Bool
     }
 }
 
-/// Standing, the feet stay inside the cat's window, under the menu bar.
-@Test func feetStayInTheCanvas() throws {
-    let island = try #require(Island.on(proled))
-    let canvas = island.canvas
-    let placement = Cat.Placement(body: island.body, origin: canvas.origin)
+/// Standing, the feet stay inside the menu bar, round ends and all: a
+/// full-screen app paints it black and starts right under it.
+@Test(arguments: [proled, notched])
+func feetStayInTheMenuBar(screen: ScreenShape) throws {
+    let island = try #require(Island.on(screen))
+    let placement = Cat.Placement(body: island.body, origin: .zero)
     for phase in stride(from: 0.0, to: 1, by: 0.05) {
-        for leg in Walk.legs(phase: phase, reach: 1) {
+        for leg in Walk.legs(phase: phase, reach: 1, ground: Walk.ground(on: island)) {
             let foot = placement.point(leg.foot)
-            #expect(foot.y >= 1)
-            #expect(foot.y + canvas.minY >= island.band.minY - 1)
+            #expect(foot.y - Walk.legWidth / 2 >= island.band.minY)
+            #expect(foot.y < island.body.minY)
         }
     }
 }
