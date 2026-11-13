@@ -21,9 +21,10 @@ cp Resources/Info.plist "$app/Contents/Info.plist"
 cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 # A stable identity keeps permissions such as Input Monitoring across
 # rebuilds; ad-hoc signatures change with every build.
-# scripts/make-signing-identity.sh creates one.
+# scripts/make-signing-identity.sh creates one. ISLAND_CAT_SIGN_IDENTITY=-
+# signs ad hoc, as release builds are.
 identity="${ISLAND_CAT_SIGN_IDENTITY:-Island Cat Local Signing}"
-if security find-identity -p codesigning | grep -q "\"$identity\""; then
+if [[ "$identity" != "-" ]] && security find-identity -p codesigning | grep -q "\"$identity\""; then
   codesign --force --sign "$identity" "$app"
 else
   codesign --force --sign - "$app"
