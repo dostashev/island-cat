@@ -122,18 +122,50 @@ public enum Walk {
         }
     }
 
-    /// Steps the cat takes while the desktops slide one desktop width.
-    public static let stepsPerDesktop = 5.0
+    /// Where the cat is in its stride, as the desktops slide under it.
+    ///
+    /// It steps forward as they slide right, the way it walks then, and
+    /// back as they slide left: five steps a desktop, but never more than
+    /// six steps a second, so a fast swipe does not strobe the legs into a
+    /// blur that seems to stand still or run backward. When the desktops
+    /// stop, it finishes its step to where every leg stands straight under
+    /// its hip, half on the ground and half mid-swing, a quarter or three
+    /// quarters of the way through a step, and the legs tuck straight up.
+    public struct Stride: Sendable {
+        /// 0..<1 over one step.
+        public var phase: Double { position - position.rounded(.down) }
+        private var position = 0.25
+        /// Which way it last stepped: 1 forward, -1 back.
+        private var direction = 1.0
 
-    /// Where the cat is in its stride after the desktops slid `offset`: it
-    /// steps forward as they slide right, the way it walks then, and back
-    /// as they slide left. A desktop at rest is a quarter of the way into
-    /// a step, where every leg stands straight under its hip, half of them
-    /// on the ground and half mid-swing, so a walk starts and ends there
-    /// and the legs tuck straight up into the body.
-    public static func phase(_ offset: Double) -> Double {
-        let steps = offset * stepsPerDesktop + 0.25
-        return steps - steps.rounded(.down)
+        static let stepsPerDesktop = 5.0
+        static let cadence = 6.0
+
+        public init() {}
+
+        /// The desktops slid `slid` desktop widths in `elapsed` seconds.
+        public mutating func follow(_ slid: Double, elapsed: Double) {
+            let wanted = slid * Self.stepsPerDesktop
+            let most = Self.cadence * elapsed
+            position += min(most, max(-most, wanted))
+            if wanted != 0 { direction = wanted > 0 ? 1 : -1 }
+        }
+
+        /// Whether the legs stand straight.
+        public var isStraight: Bool {
+            let half = (position - 0.25) * 2
+            return abs(half - half.rounded()) < 1e-9
+        }
+
+        /// The desktops have stopped: carries on the way it was going to
+        /// the next straight-legged pose, for `elapsed` seconds.
+        public mutating func finish(elapsed: Double) {
+            let half = (position - 0.25) * 2
+            let target = (direction > 0 ? half.rounded(.up) : half.rounded(.down)) / 2 + 0.25
+            let most = Self.cadence * elapsed
+            position += min(most, max(-most, target - position))
+            if abs(target - position) < 1e-9 { position = target }
+        }
     }
 
     /// The legs, in art units: hips inside the body, feet on the ground

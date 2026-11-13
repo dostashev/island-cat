@@ -30,7 +30,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// last moved.
     private var reach = 0.0
     private var lastMoved = 0.0
-    private var walkTimer: Timer?
+    private var lastStep: Double?
+    private var lastFrameOffset: Double?
+    private var stride = Walk.Stride()
+    /// Steps the walk on every frame the screen draws, while it lasts.
+    private var walkTimer: CADisplayLink?
+    /// Keeps macOS from napping the app or delaying its frames mid-walk.
+    private var walkActivity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // As wide as the icon: macOS already spaces every item 8 pt from
@@ -64,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
         placeCats()
+        if WalkTrace.shared.enabled { WalkTrace.shared.flush() }
         if walks { _ = swipes.start() }
     }
 
@@ -73,50 +80,93 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = CACurrentMediaTime()
         // A new walk starts heading left from where the desktops are.
         if walkTimer == nil { heading = Walk.Heading(at: slide.offset) }
+        let before = slide.offset
         switch change {
         case .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
+            WalkTrace.shared.write("lift", progress, velocity)
             let screen = panels.first?.screen ?? NSScreen.main
             let neighbors = screen.map(DesktopSwipes.neighbors) ?? (left: true, right: true)
             slide.lift(
                 at: progress, velocity: velocity, now: now,
                 canGoLeft: neighbors.left, canGoRight: neighbors.right)
         }
-        lastMoved = now
+        // The fingers moving the desktops; a swipe held still is not
+        // walking.
+        if slide.offset != before && !slide.isSettling { lastMoved = now }
         guard walkTimer == nil else { return }
-        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.stepWalk() }
+        walkActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .latencyCritical], reason: "Walking with the desktops")
+        let screen = panels.first?.screen ?? NSScreen.main
+        if let link = screen?.displayLink(target: self, selector: #selector(stepWalk)) {
+            link.add(to: .main, forMode: .common)
+            walkTimer = link
         }
-        RunLoop.main.add(timer, forMode: .common)
-        walkTimer = timer
         stepWalk()
     }
 
     /// The legs come out while the desktops slide and tuck away once they
     /// stop. The tail trails behind the way the fingers go, and goes back
     /// to its place once the legs are tucked away.
-    private func stepWalk() {
+    @objc private func stepWalk() {
         let now = CACurrentMediaTime()
-        if slide.advance(to: now) { lastMoved = now }
+        let sincePrevious = now - (lastStep ?? now)
+        // By the clock, not the frame count, so a slow frame does not slow
+        // the legs: out in 0.1 s, tucked away in 0.15 s.
+        let elapsed = min(0.05, now - (lastStep ?? now))
+        lastStep = now
+        _ = slide.advance(to: now)
+        // How far the desktops slid since the last frame, by the fingers or
+        // the system's slide after they lift.
+        let slid = slide.offset - (lastFrameOffset ?? slide.offset)
+        lastFrameOffset = slide.offset
+        // The cat walks while the fingers move the desktops: faster than a
+        // tenth of a desktop a second. Once they lift, macOS finishes the
+        // slide without drawing any app's windows, so the cat would freeze
+        // mid-step; it tucks its legs away at once instead and stands still
+        // through the rest of the slide.
+        if slide.isSettling {
+            lastMoved = 0
+            reach = 0
+        } else if elapsed > 0, abs(slid) / elapsed > 0.1 {
+            lastMoved = now
+        }
         let moving = now - lastMoved < 0.1
-        reach = moving ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
+        if moving {
+            stride.follow(slid, elapsed: elapsed)
+            reach = min(1, reach + elapsed / 0.1)
+        } else {
+            // Finish the step on straight legs, then tuck them away.
+            stride.finish(elapsed: elapsed)
+            if stride.isStraight { reach = max(0, reach - elapsed / 0.15) }
+        }
         // Only the fingers turn the cat; the system's slide after they
         // lift, even springing back, does not.
         if !slide.isSettling { _ = heading.follow(slide.offset) }
-        let done = reach == 0 && !moving
+        // Over once the legs are tucked away and the slide has settled.
+        let done = reach == 0 && !moving && !slide.isSettling
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
         odometer.follow(slide.offset, width: screenWidth)
-        let phase = Walk.phase(slide.offset)
+        let phase = stride.phase
         for panel in panels {
             panel.walk(phase: phase, reach: reach)
             if turned { panel.tail(onLeft: left) }
         }
+        WalkTrace.shared.write(
+            "frame", sincePrevious, slide.offset, reach, slide.isSettling ? 1 : 0,
+            CACurrentMediaTime() - now, stride.phase)
         if done {
             walkTimer?.invalidate()
             walkTimer = nil
+            lastStep = nil
+            lastFrameOffset = nil
+            WalkTrace.shared.write("done")
+            WalkTrace.shared.flush()
+            if let walkActivity { ProcessInfo.processInfo.endActivity(walkActivity) }
+            walkActivity = nil
             defaults.set(odometer.meters, forKey: "metersWalked")
         }
     }

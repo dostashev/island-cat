@@ -35,32 +35,51 @@ import Testing
     #expect(!slide.isSettling)
 }
 
-/// A whole desktop is a whole number of steps, so the stride carries on
-/// where it left off at the next swipe.
-@Test func strideIsContinuousAcrossDesktops() {
-    for desktops in [-2.0, -1, 1, 3] {
-        #expect(abs(Walk.phase(desktops) - Walk.phase(0)) < 1e-9)
-    }
-    #expect(abs(Walk.phase(0.1) - Walk.phase(-0.1)) < 1e-9)
-}
-
-/// On every desktop at rest the legs stand straight under the hips, not
-/// meeting in a V.
-@Test(arguments: [0.0, -1, 1, 2])
-func legsStandStraightOnADesktopAtRest(offset: Double) {
-    for leg in Walk.legs(phase: Walk.phase(offset), reach: 1) {
+/// The cat starts and ends on straight legs, not meeting in a V.
+@Test func strideStartsOnStraightLegs() {
+    let stride = Walk.Stride()
+    #expect(stride.isStraight)
+    for leg in Walk.legs(phase: stride.phase, reach: 1) {
         #expect(abs(leg.foot.x - leg.hip.x) < 1e-9)
     }
 }
 
+/// Five steps a desktop while the desktops slide slowly, but a fast flick
+/// is held to six steps a second.
+@Test func strideFollowsTheSlideUpToACadence() {
+    var slow = Walk.Stride()
+    slow.follow(0.1, elapsed: 0.2)
+    #expect(abs(slow.phase - 0.75) < 1e-9)
+    var fast = Walk.Stride()
+    fast.follow(0.5, elapsed: 0.1)
+    #expect(abs(fast.phase - 0.85) < 1e-9)
+}
+
+/// When the desktops stop, the cat finishes its step the way it was going
+/// and ends on straight legs.
+@Test(arguments: [0.03, -0.03])
+func strideFinishesOnStraightLegs(slid: Double) {
+    var stride = Walk.Stride()
+    stride.follow(slid, elapsed: 0.1)
+    #expect(!stride.isStraight)
+    let before = stride.phase
+    for _ in 0..<30 { stride.finish(elapsed: 1.0 / 120) }
+    #expect(stride.isStraight)
+    // It went on the way it was going: forward from 0.4 to 0.75, back from
+    // 0.1 to -0.25.
+    #expect(abs(stride.phase - 0.75) < 1e-9)
+    #expect(before != stride.phase)
+}
+
 /// The cat walks the way the desktops slide: going right, the feet on the
 /// ground push back to the left, and going left, to the right.
-@Test(arguments: [(0.01, 0.03, true), (-0.01, -0.03, false)])
-func feetOnTheGroundPushBackAgainstTheWalk(from: Double, to: Double, right: Bool) {
-    let early = Walk.legs(phase: Walk.phase(from), reach: 1)
-    let later = Walk.legs(phase: Walk.phase(to), reach: 1)
+@Test(arguments: [(0.002, true), (-0.002, false)])
+func feetOnTheGroundPushBackAgainstTheWalk(slid: Double, right: Bool) {
+    var stride = Walk.Stride()
+    let early = Walk.legs(phase: stride.phase, reach: 1)
+    stride.follow(slid, elapsed: 0.01)
+    let later = Walk.legs(phase: stride.phase, reach: 1)
     let ground = early.map(\.foot.y).max()!
-    // The legs on the ground at both moments.
     let planted = early.indices.filter { early[$0].foot.y == ground && later[$0].foot.y == ground }
     #expect(planted.count == 2)
     for leg in planted {
@@ -123,3 +142,4 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     for offset in [0, 0.5, 1, 0.6, 0] { odometer.follow(offset, width: 0.346) }
     #expect(abs(odometer.meters - 1.692) < 1e-9)
 }
+
