@@ -14,6 +14,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         set { defaults.set(newValue, forKey: "showsCat") }
     }
 
+    /// Moonwalk in place while you swipe between desktops.
+    private var moonwalks: Bool {
+        get { defaults.bool(forKey: "moonwalks") }
+        set { defaults.set(newValue, forKey: "moonwalks") }
+    }
+    private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
+    private var slide = Moonwalk.Slide()
+    /// How far the legs are out, 0 to 1, and how long since the desktops
+    /// last moved.
+    private var reach = 0.0
+    private var lastMoved = 0.0
+    private var walkTimer: Timer?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "cat.fill", accessibilityDescription: "Island Cat")
@@ -43,6 +56,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
         placeCats()
+        if moonwalks { _ = swipes.start() }
+    }
+
+    // MARK: Moonwalk
+
+    private func swiped(_ change: DesktopSwipes.Change) {
+        let now = CACurrentMediaTime()
+        switch change {
+        case .moved(let progress):
+            slide.follow(progress)
+        case .lifted(let progress, let velocity):
+            let screen = panels.first?.screen ?? NSScreen.main
+            let neighbors = screen.map(DesktopSwipes.neighbors) ?? (left: true, right: true)
+            slide.lift(
+                at: progress, velocity: velocity, now: now,
+                canGoLeft: neighbors.left, canGoRight: neighbors.right)
+        }
+        lastMoved = now
+        guard walkTimer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 120, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.stepWalk() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        walkTimer = timer
+        stepWalk()
+    }
+
+    /// The legs come out while the desktops slide and tuck away after.
+    private func stepWalk() {
+        let now = CACurrentMediaTime()
+        if slide.advance(to: now) { lastMoved = now }
+        let out = now - lastMoved < 0.1
+        reach = out ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
+        let phase = Moonwalk.phase(slide.offset)
+        for panel in panels { panel.walk(phase: phase, reach: reach) }
+        if !out && reach == 0 {
+            walkTimer?.invalidate()
+            walkTimer = nil
+        }
     }
 
     private func pointerMoved() {
@@ -112,6 +164,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(login)
 
+        let walk = NSMenuItem(
+            title: "Moonwalk When Switching Desktops", action: #selector(toggleMoonwalk),
+            keyEquivalent: "")
+        walk.target = self
+        walk.state = moonwalks ? .on : .off
+        menu.addItem(walk)
+
         menu.addItem(.separator())
         menu.addItem(
             NSMenuItem(title: "Quit Island Cat", action: #selector(NSApp.terminate), keyEquivalent: "q"))
@@ -120,6 +179,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleCat() {
         showsCat.toggle()
         placeCats()
+    }
+
+    @objc private func toggleMoonwalk() {
+        moonwalks.toggle()
+        guard moonwalks else {
+            swipes.stop()
+            return
+        }
+        if !swipes.start() {
+            let alert = NSAlert()
+            alert.messageText = "Island Cat needs Input Monitoring to moonwalk"
+            alert.informativeText =
+                "To follow your swipe as it happens, Island Cat listens to the trackpad's "
+                + "desktop-swipe gesture. Turn on Island Cat in System Settings › Privacy & "
+                + "Security › Input Monitoring, then reopen Island Cat."
+            alert.runModal()
+        }
     }
 
     @objc private func toggleLogin() {

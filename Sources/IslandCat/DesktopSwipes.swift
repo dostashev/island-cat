@@ -1,0 +1,112 @@
+import AppKit
+import os
+
+/// Follows the trackpad swipe between desktops as it happens.
+///
+/// The system posts no public notification until the desktop has finished
+/// changing, so this listens (without changing anything) to the Dock's
+/// swipe gesture events through a session event tap: their phase (began,
+/// changed, ended) and progress in desktop widths. Listening needs Input
+/// Monitoring permission.
+@MainActor
+final class DesktopSwipes {
+    enum Change {
+        case moved(progress: Double)
+        case lifted(progress: Double, velocity: Double)
+    }
+
+    private let changed: (Change) -> Void
+    private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
+
+    /// The Dock's gesture events, and the fields that carry the swipe.
+    private static let dockGesture: UInt32 = 30
+    private static let horizontalSwipe: Int64 = 1
+    private static let kindField = CGEventField(rawValue: 123)!
+    private static let progressField = CGEventField(rawValue: 124)!
+    private static let velocityField = CGEventField(rawValue: 129)!
+    private static let phaseField = CGEventField(rawValue: 132)!
+
+    init(changed: @escaping (Change) -> Void) {
+        self.changed = changed
+    }
+
+    /// Starts listening. Returns false without Input Monitoring permission,
+    /// after asking for it.
+    func start() -> Bool {
+        guard tap == nil else { return true }
+        let mask = CGEventMask(1) << CGEventMask(Self.dockGesture)
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .listenOnly,
+                eventsOfInterest: mask,
+                callback: { _, type, event, info in
+                    if let info, type.rawValue == DesktopSwipes.dockGesture {
+                        let swipes = Unmanaged<DesktopSwipes>.fromOpaque(info).takeUnretainedValue()
+                        MainActor.assumeIsolated { swipes.handle(event) }
+                    }
+                    return Unmanaged.passUnretained(event)
+                },
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else {
+            Logger(subsystem: "com.dostashev.IslandCat", category: "swipes")
+                .notice("No Input Monitoring permission; asking for it")
+            CGRequestListenEventAccess()
+            return false
+        }
+        let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        self.tap = tap
+        self.source = source
+        Logger(subsystem: "com.dostashev.IslandCat", category: "swipes").notice("Following desktop swipes")
+        return true
+    }
+
+    func stop() {
+        if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        tap = nil
+        source = nil
+    }
+
+    private func handle(_ event: CGEvent) {
+        guard event.getIntegerValueField(Self.kindField) == Self.horizontalSwipe else { return }
+        let progress = event.getDoubleValueField(Self.progressField)
+        switch event.getIntegerValueField(Self.phaseField) {
+        case 1, 2:
+            changed(.moved(progress: progress))
+        case 4, 8:
+            changed(.lifted(progress: progress, velocity: event.getDoubleValueField(Self.velocityField)))
+        default:
+            break
+        }
+    }
+
+    /// Whether there is a desktop to the left and to the right of the
+    /// current one on the screen with the island, from WindowServer's
+    /// list of spaces. Assumes both when the list is unavailable.
+    static func neighbors(on screen: NSScreen) -> (left: Bool, right: Bool) {
+        typealias MainConnectionID = @convention(c) () -> Int32
+        typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
+        guard
+            let skyLight = dlopen(
+                "/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight", RTLD_NOW),
+            let main = dlsym(skyLight, "SLSMainConnectionID"),
+            let copy = dlsym(skyLight, "SLSCopyManagedDisplaySpaces"),
+            let displays = unsafeBitCast(copy, to: CopyManagedDisplaySpaces.self)(
+                unsafeBitCast(main, to: MainConnectionID.self)()
+            )?.takeRetainedValue() as? [[String: Any]]
+        else { return (true, true) }
+        let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        let uuid = number.flatMap { CGDisplayCreateUUIDFromDisplayID($0)?.takeRetainedValue() }
+            .map { CFUUIDCreateString(nil, $0) as String }
+        // With "Displays have separate Spaces" off there is one entry, "Main".
+        let display = displays.first { ($0["Display Identifier"] as? String) == uuid } ?? displays.first
+        guard let display,
+            let spaces = display["Spaces"] as? [[String: Any]],
+            let current = (display["Current Space"] as? [String: Any])?["ManagedSpaceID"] as? Int,
+            let index = spaces.firstIndex(where: { ($0["ManagedSpaceID"] as? Int) == current })
+        else { return (true, true) }
+        return (index > 0, index < spaces.count - 1)
+    }
+}

@@ -14,6 +14,8 @@ final class CatPanel: NSPanel {
     /// A change of `grown` waiting for the system's island to start it.
     private var pending: Task<Void, Never>?
     private var pointer = NSPoint.zero
+    /// Legs, out only while the cat moonwalks.
+    private let legs = CAShapeLayer()
 
     /// One part of the cat: `shape` draws it and runs its motion, inside
     /// `holder`, which follows the island as it grows under the pointer.
@@ -46,6 +48,12 @@ final class CatPanel: NSPanel {
 
         let view = NSView(frame: NSRect(origin: .zero, size: canvas.size))
         view.wantsLayer = true
+        legs.contentsScale = scale
+        legs.strokeColor = NSColor.black.cgColor
+        legs.fillColor = nil
+        legs.lineWidth = 2
+        legs.lineCap = .round
+        view.layer?.addSublayer(legs)
         for piece in pieces { view.layer?.addSublayer(piece.holder) }
         contentView = view
         setFrame(canvas, display: false)
@@ -87,6 +95,23 @@ final class CatPanel: NSPanel {
             grown = wantsGrown
             follow(spring)
         }
+    }
+
+    /// Poses the legs `phase` of the way through a step, `reach` of the
+    /// way out of the body.
+    func walk(phase: Double, reach: Double) {
+        let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
+        let path = CGMutablePath()
+        if reach > 0 {
+            for leg in Moonwalk.legs(phase: phase, reach: reach) {
+                path.move(to: placement.point(leg.hip))
+                path.addLine(to: placement.point(leg.foot))
+            }
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        legs.path = path
+        CATransaction.commit()
     }
 
     private func move() {
