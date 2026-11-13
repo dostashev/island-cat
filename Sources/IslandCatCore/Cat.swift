@@ -55,6 +55,7 @@ public enum Cat {
             keyTimes: [0, 0.2, 0.4, 0.6, 1], duration: 0.7, delay: delay)
     }
 
+    /// The whiskers turn around the root of the middle one, at the face.
     /// The ears reach well into the head and turn around the inner corner
     /// where they meet it, so as they flick their base stays inside the
     /// head and only the ear shows. The tail swings from where it leaves
@@ -81,7 +82,7 @@ public enum Cat {
                 .move(p(-3, 18)), .line(p(-17, 18)),
                 .move(p(-3, 23)), .line(p(-16, 27)),
             ],
-            filled: false, lineWidth: 1.6, pivot: p(-10, 18),
+            filled: false, lineWidth: 1.6, pivot: p(-3, 18),
             idle: nil, excited: whiskerTwitch),
         Part(
             name: "right whiskers",
@@ -90,7 +91,7 @@ public enum Cat {
                 .move(p(70, 18)), .line(p(84, 18)),
                 .move(p(70, 23)), .line(p(83, 27)),
             ],
-            filled: false, lineWidth: 1.6, pivot: p(77, 18),
+            filled: false, lineWidth: 1.6, pivot: p(70, 18),
             idle: nil, excited: whiskerTwitch),
         Part(
             name: "tail",

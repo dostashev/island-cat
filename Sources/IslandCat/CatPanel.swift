@@ -29,6 +29,8 @@ final class CatPanel: NSPanel {
     private struct Piece {
         var part: Cat.Part
         var holder: CALayer
+        /// Turns the part around its pivot as the cat walks.
+        var tilt: CALayer
         var shape: CAShapeLayer
         var restScale: CGFloat
     }
@@ -127,7 +129,7 @@ final class CatPanel: NSPanel {
     }
 
     /// Poses the legs `phase` of the way through a step, `reach` of the
-    /// way out of the body.
+    /// way out of the body, and the whiskers with them.
     func walk(phase: Double, reach: Double) {
         let placement = Cat.Placement(body: island.body, origin: island.canvas.origin)
         let path = CGMutablePath()
@@ -137,9 +139,22 @@ final class CatPanel: NSPanel {
                 path.addLine(to: placement.point(leg.foot))
             }
         }
+        // The whiskers bob with the steps, each side turning about the
+        // root of its middle whisker so the outer ends rise and fall together.
+        let tilt = Walk.whiskerTilt(phase: phase, reach: reach) * .pi / 180
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         legs.path = path
+        for piece in pieces {
+            switch piece.part.name {
+            case "left whiskers":
+                piece.tilt.transform = CATransform3DMakeRotation(-tilt, 0, 0, 1)
+            case "right whiskers":
+                piece.tilt.transform = CATransform3DMakeRotation(tilt, 0, 0, 1)
+            default:
+                break
+            }
+        }
         CATransaction.commit()
     }
 
@@ -224,6 +239,11 @@ final class CatPanel: NSPanel {
         holder.anchorPoint = anchor
         holder.frame = bounds
 
+        let tilt = CALayer()
+        tilt.anchorPoint = anchor
+        tilt.frame = holder.bounds
+        holder.addSublayer(tilt)
+
         let shape = CAShapeLayer()
         shape.contentsScale = scale
         shape.anchorPoint = anchor
@@ -238,8 +258,9 @@ final class CatPanel: NSPanel {
             shape.lineCap = .round
             shape.lineJoin = .round
         }
-        holder.addSublayer(shape)
-        return Piece(part: part, holder: holder, shape: shape, restScale: placement.scale)
+        tilt.addSublayer(shape)
+        return Piece(
+            part: part, holder: holder, tilt: tilt, shape: shape, restScale: placement.scale)
     }
 
     private static func animation(_ motion: Cat.Motion) -> CAKeyframeAnimation {

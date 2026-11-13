@@ -169,6 +169,13 @@ public enum Walk {
         }
     }
 
+    /// How far the whiskers tilt, in degrees, `phase` of the way through a
+    /// step with the legs `reach` of the way out: they bob once a step, the
+    /// outer ends rising and falling together.
+    public static func whiskerTilt(phase: Double, reach: Double) -> Double {
+        5 * sin(2 * .pi * (phase - 0.25)) * min(1, max(0, reach))
+    }
+
     /// The legs, in art units: hips inside the body, feet on the ground
     /// under it at `ground`. `phase` runs 0..<1 over one step; `reach` from
     /// 0 (tucked into the body) to 1 (standing).

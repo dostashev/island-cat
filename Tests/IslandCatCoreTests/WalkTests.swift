@@ -143,3 +143,12 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     #expect(abs(odometer.meters - 1.692) < 1e-9)
 }
 
+
+/// The whiskers bob once a step while walking, and rest level where a walk
+/// starts and ends on straight legs, or with the legs tucked away.
+@Test func whiskersBobWithTheSteps() {
+    #expect(abs(Walk.whiskerTilt(phase: Walk.Stride().phase, reach: 1)) < 1e-9)
+    #expect(abs(Walk.whiskerTilt(phase: 0.5, reach: 1) - 5) < 1e-9)
+    #expect(abs(Walk.whiskerTilt(phase: 0.0, reach: 1) + 5) < 1e-9)
+    #expect(Walk.whiskerTilt(phase: 0.5, reach: 0) == 0)
+}
