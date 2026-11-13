@@ -21,13 +21,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
     private var slide = Walk.Slide()
-    /// The tail trails behind: once the cat has gone right during a walk,
-    /// it is on the left until the legs are tucked away again.
+    /// Which way the cat goes; its tail trails behind, on the left while
+    /// it goes right.
     private var heading = Walk.Heading()
     private var tailLeft = false
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
     private var reach = 0.0
+    /// How much of a full stride the cat takes, 0 to 1.
+    private var stepping = 0.0
     private var lastMoved = 0.0
     private var walkTimer: Timer?
 
@@ -89,27 +91,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         stepWalk()
     }
 
-    /// The legs come out while the desktops slide and tuck away after.
+    /// The legs come out while the desktops slide; once they stop the cat
+    /// stands still on straight legs, then tucks them away. The tail
+    /// trails behind the way the fingers go, and goes back to its place
+    /// once the legs are tucked away.
     private func stepWalk() {
         let now = CACurrentMediaTime()
         if slide.advance(to: now) { lastMoved = now }
-        let out = now - lastMoved < 0.1
-        reach = out ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
-        let phase = Walk.phase(slide.offset)
-        let goesRight = heading.follow(slide.offset) && heading.right && !tailLeft
-        if goesRight { tailLeft = true }
-        for panel in panels {
-            panel.walk(phase: phase, reach: reach)
-            if goesRight { panel.tail(onLeft: true) }
+        if now - lastMoved < 0.1 {
+            reach = min(1, reach + 1.0 / 12)
+            stepping = min(1, stepping + 1.0 / 12)
+        } else if stepping > 0 {
+            stepping = max(0, stepping - 1.0 / 15)
+        } else {
+            reach = max(0, reach - 1.0 / 18)
         }
-        if !out && reach == 0 {
+        // Only the fingers turn the cat; the system's slide after they
+        // lift, even springing back, does not.
+        if !slide.isSettling { _ = heading.follow(slide.offset) }
+        let done = reach == 0 && stepping == 0
+        let left = heading.right && !done
+        let turned = left != tailLeft
+        tailLeft = left
+        let phase = Walk.phase(slide.offset)
+        for panel in panels {
+            panel.walk(phase: phase, stepping: stepping, reach: reach)
+            if turned { panel.tail(onLeft: left) }
+        }
+        if done {
             walkTimer?.invalidate()
             walkTimer = nil
-            // The walk is over: the tail goes back to its place.
-            if tailLeft {
-                tailLeft = false
-                for panel in panels { panel.tail(onLeft: false) }
-            }
         }
     }
 
