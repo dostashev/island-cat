@@ -37,19 +37,16 @@ public enum Walk {
         /// The fingers lifted at `progress`, moving at `velocity` desktop
         /// widths a second, at time `now`. The slide goes on to the next
         /// desktop past halfway or when flicked, unless there is no desktop
-        /// that way; otherwise it springs back. Returns how many desktops it
-        /// moves on: -1, 0 or 1.
-        @discardableResult
+        /// that way; otherwise it springs back.
         public mutating func lift(
             at progress: Double, velocity: Double, now: Double, canGoLeft: Bool, canGoRight: Bool
-        ) -> Double {
+        ) {
             let projected = progress + velocity * 0.15
             var to = 0.0
             if projected <= -0.5 && canGoRight { to = -1 }
             if projected >= 0.5 && canGoLeft { to = 1 }
             offset = base + progress
             release = (offset, base + to, now)
-            return to
         }
 
         /// Advances the slide after the fingers lifted to time `now`.
@@ -107,19 +104,23 @@ public enum Walk {
         return min(42, room / scale)
     }
 
-    /// How far the cat has walked: a screen's width for every desktop it
-    /// went along to. Swipes that spring back, and the fingers' wobble on
-    /// the way, do not count.
+    /// How far the cat has walked: as far as the desktops have slid under
+    /// it, every way they went, on a screen `width` meters wide. A swipe on
+    /// to the next desktop is a screen's width; one that springs back is
+    /// twice as far as it got; swiping back and forth counts every stroke.
     public struct Odometer: Sendable {
         public private(set) var meters: Double
+        private var last: Double?
 
         public init(meters: Double = 0) {
             self.meters = meters
         }
 
-        /// The desktops moved on by `desktops` on a screen `width` meters wide.
-        public mutating func add(desktops: Double, width: Double) {
-            meters += abs(desktops) * width
+        /// The desktops are at `offset` desktop widths on a screen `width`
+        /// meters wide.
+        public mutating func follow(_ offset: Double, width: Double) {
+            if let last { meters += abs(offset - last) * width }
+            last = offset
         }
     }
 

@@ -135,19 +135,11 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     #expect(turns == [false, true])
 }
 
-/// A screen's width for each desktop the cat went along to: two swipes on
-/// to the next desktop on the 34.6 cm wide PROLED panel, and one that
-/// springs back, are 69.2 cm.
-@Test func odometerCountsDesktopsReached() {
-    var slide = Walk.Slide()
+/// Over and back counts both ways: one desktop right and back on the
+/// 34.6 cm wide PROLED panel is 69.2 cm.
+@Test func odometerCountsEveryWayTheDesktopsSlide() {
     var odometer = Walk.Odometer(meters: 1)
-    for (progress, velocity) in [(-0.6, -1.0), (0.3, 0.1), (0.7, 2.0)] {
-        slide.follow(progress)
-        let desktops = slide.lift(
-            at: progress, velocity: velocity, now: 0, canGoLeft: true, canGoRight: true)
-        _ = slide.advance(to: 1)
-        odometer.add(desktops: desktops, width: 0.346)
-    }
+    for offset in [0, 0.5, 1, 0.6, 0] { odometer.follow(offset, width: 0.346) }
     #expect(abs(odometer.meters - 1.692) < 1e-9)
 }
 
