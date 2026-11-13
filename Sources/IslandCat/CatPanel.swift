@@ -14,6 +14,11 @@ final class CatPanel: NSPanel {
     /// A change of `grown` waiting for the system's island to start it.
     private var pending: Task<Void, Never>?
     private var pointer = NSPoint.zero
+    /// Stroking the pointer back and forth over the cat pets it, and it
+    /// says something.
+    private var petting = Petting()
+    private lazy var bubble = Bubble(animates: animates)
+    private var lastReply: (text: String, at: Double)?
     /// Legs, out only while the cat walks.
     private let legs = CAShapeLayer()
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
@@ -85,6 +90,7 @@ final class CatPanel: NSPanel {
             excited = near
             move()
         }
+        pet(at: location)
         let wantsGrown = grown ? island.keepsHover(at: location) : island.startsHover(at: location)
         guard wantsGrown != grown else {
             // The pointer came back before the island changed.
@@ -103,6 +109,21 @@ final class CatPanel: NSPanel {
             grown = wantsGrown
             follow(spring)
         }
+    }
+
+    private func pet(at location: NSPoint) {
+        let cat = grown ? island.hovered(toward: location) : island.body
+        guard cat.contains(location) else {
+            petting.reset()
+            return
+        }
+        let now = CACurrentMediaTime()
+        guard petting.stroke(x: location.x, at: now) else { return }
+        // One thing at a time.
+        if let lastReply, now - lastReply.at < Bubble.shown + 0.4 { return }
+        let reply = Petting.reply(after: lastReply?.text, random: Double.random(in: 0..<1))
+        lastReply = (reply, now)
+        bubble.say(reply, on: island)
     }
 
     /// Poses the legs `phase` of the way through a step, `reach` of the
