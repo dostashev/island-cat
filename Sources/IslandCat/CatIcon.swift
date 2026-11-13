@@ -8,8 +8,8 @@ enum CatIcon {
     static func image() -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 16), flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            // Points, y down; the drawing spans y 2.6 to 14.4; center it.
-            context.translateBy(x: 0, y: -0.5)
+            // Points, y down; the drawing spans y 5.2 to 14.4; center it.
+            context.translateBy(x: 0, y: -1.8)
             context.setFillColor(.black)
             context.setStrokeColor(.black)
             context.setLineCap(.round)
@@ -22,11 +22,16 @@ enum CatIcon {
                     transform: nil))
             context.fillPath()
 
-            for ear in [
-                [(3.3, 10), (3.5, 2.6), (7.3, 5.2), (7.8, 7.6)],
-                [(14.7, 10), (14.5, 2.6), (10.7, 5.2), (10.2, 7.6)],
-            ] {
-                context.addLines(between: ear.map { CGPoint(x: $0.0, y: $0.1) })
+            // The cat's own ears, scaled to the body, standing a little
+            // taller so they read at this size.
+            let scale = body.width / 67
+            for mirrored in [false, true] {
+                let ear = [(4.0, 13.0), (5, -4), (22, 1), (24, 8)].map { u, v in
+                    CGPoint(
+                        x: mirrored ? body.maxX - u * scale : body.minX + u * scale,
+                        y: body.minY + v * scale * (v < 0 ? 2 : 1))
+                }
+                context.addLines(between: ear)
                 context.closePath()
                 context.fillPath()
             }
