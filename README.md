@@ -25,8 +25,16 @@ scripts/bundle.sh --install   # builds "Island Cat.app" into /Applications and o
 
 The cat icon in the menu bar has **Show Cat**, **Open at Login** and **Quit**.
 
-`scripts/bundle.sh` alone builds a universal, ad-hoc-signed app into `build/`.
-It is not notarized, so on another Mac open it once with right-click › Open.
+`scripts/bundle.sh` alone builds a universal app into `build/`. It signs it
+with "Island Cat Local Signing" when that identity exists
+(`scripts/make-signing-identity.sh` creates a self-signed one), so macOS keeps
+its permissions across rebuilds; otherwise it signs ad hoc. It is not
+notarized, so on another Mac open it once with right-click › Open.
+
+**Moonwalk When Switching Desktops** (off by default) has the cat step in
+place while you swipe between desktops, following your fingers. Seeing the
+swipe as it happens needs Input Monitoring permission (System Settings ›
+Privacy & Security › Input Monitoring); the app asks for it.
 
 ## Develop
 

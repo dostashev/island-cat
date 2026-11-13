@@ -16,6 +16,8 @@ final class CatPanel: NSPanel {
     private var pointer = NSPoint.zero
     /// Legs, out only while the cat moonwalks.
     private let legs = CAShapeLayer()
+    /// Mirrors the tail across the cat, to trail behind it as it goes right.
+    private let tailSide = CALayer()
 
     /// One part of the cat: `shape` draws it and runs its motion, inside
     /// `holder`, which follows the island as it grows under the pointer.
@@ -54,7 +56,13 @@ final class CatPanel: NSPanel {
         legs.lineWidth = 2
         legs.lineCap = .round
         view.layer?.addSublayer(legs)
-        for piece in pieces { view.layer?.addSublayer(piece.holder) }
+        tailSide.anchorPoint = CGPoint(
+            x: (island.body.midX - canvas.minX) / canvas.width, y: 0.5)
+        tailSide.frame = CGRect(origin: .zero, size: canvas.size)
+        view.layer?.addSublayer(tailSide)
+        for piece in pieces {
+            (piece.part.name == "tail" ? tailSide : view.layer)?.addSublayer(piece.holder)
+        }
         contentView = view
         setFrame(canvas, display: false)
         move()
@@ -112,6 +120,24 @@ final class CatPanel: NSPanel {
         CATransaction.setDisableActions(true)
         legs.path = path
         CATransaction.commit()
+    }
+
+    /// Swings the tail behind the body to the left side of the cat, or back
+    /// to the right.
+    func tail(onLeft: Bool) {
+        let to = NSValue(caTransform3D: CATransform3DMakeScale(onLeft ? -1 : 1, 1, 1))
+        let from = (tailSide.presentation() ?? tailSide).value(forKeyPath: "transform")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        tailSide.transform = to.caTransform3DValue
+        CATransaction.commit()
+        guard animates else { return }
+        let swing = CABasicAnimation(keyPath: "transform")
+        swing.fromValue = from
+        swing.toValue = to
+        swing.duration = 0.35
+        swing.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        tailSide.add(swing, forKey: "swing")
     }
 
     private func move() {

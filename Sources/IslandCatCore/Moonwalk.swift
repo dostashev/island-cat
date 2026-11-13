@@ -4,12 +4,15 @@ import Foundation
 /// The cat moonwalking in place while you swipe between desktops: its feet
 /// slide along with the sliding desktop, so it looks to walk with it.
 public enum Moonwalk {
-    /// How far the desktop has slid, in desktop widths: negative while the
-    /// desktops move left (on to the desktop on the right), positive while
-    /// they move right. Follows the swipe while a finger is down, then the
-    /// system's own slide to the desktop it settles on.
+    /// How far the desktops have slid, in desktop widths: down while they
+    /// move left (on to the desktop on the right), up while they move
+    /// right. Follows the swipe while the fingers are down, then the
+    /// system's own slide to the desktop it settles on, and carries on from
+    /// there at the next swipe, so it never jumps.
     public struct Slide: Sendable {
         public private(set) var offset: Double = 0
+        /// The offset of the desktop the current swipe started from.
+        private var base: Double = 0
         /// Where the slide ends after the fingers lift, and when it set off.
         private var release: (from: Double, to: Double, at: Double)?
 
@@ -19,10 +22,15 @@ public enum Moonwalk {
 
         public init() {}
 
-        /// The swipe has moved the desktops to `progress`.
+        /// The swipe has moved the desktops `progress` desktop widths from
+        /// where it started.
         public mutating func follow(_ progress: Double) {
-            release = nil
-            offset = progress
+            if let release {
+                // A new swipe during the slide starts from where it was going.
+                base = release.to
+                self.release = nil
+            }
+            offset = base + progress
         }
 
         /// The fingers lifted at `progress`, moving at `velocity` desktop
@@ -36,8 +44,8 @@ public enum Moonwalk {
             var to = 0.0
             if projected <= -0.5 && canGoRight { to = -1 }
             if projected >= 0.5 && canGoLeft { to = 1 }
-            offset = progress
-            release = (progress, to, now)
+            offset = base + progress
+            release = (offset, base + to, now)
         }
 
         /// Advances the slide after the fingers lifted to time `now`.
@@ -47,11 +55,37 @@ public enum Moonwalk {
             let t = min(1, max(0, (now - release.at) / Self.settle))
             let eased = 1 - pow(1 - t, 3)
             offset = release.from + (release.to - release.from) * eased
-            if t >= 1 { self.release = nil }
+            if t >= 1 {
+                base = release.to
+                self.release = nil
+            }
             return t < 1
         }
 
         public var isSettling: Bool { release != nil }
+    }
+
+    /// Which way the cat is going: the way the desktops last slid, turning
+    /// only once they have slid `turn` desktop widths back the other way,
+    /// so a wobble of the fingers does not flip it.
+    public struct Heading: Sendable {
+        public private(set) var right = false
+        /// The furthest the desktops got the way the cat is going.
+        private var furthest: Double = 0
+        static let turn = 0.02
+
+        public init() {}
+
+        /// Follows the slide to `offset`; returns true when the cat turns.
+        public mutating func follow(_ offset: Double) -> Bool {
+            if right ? offset < furthest - Self.turn : offset > furthest + Self.turn {
+                right.toggle()
+                furthest = offset
+                return true
+            }
+            furthest = right ? max(furthest, offset) : min(furthest, offset)
+            return false
+        }
     }
 
     /// Steps the cat takes while the desktops slide one desktop width.

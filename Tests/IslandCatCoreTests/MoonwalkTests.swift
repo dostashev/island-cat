@@ -75,3 +75,22 @@ import Testing
         }
     }
 }
+
+/// After the slide settles on the next desktop, the next swipe carries on
+/// from there instead of jumping back.
+@Test func nextSwipeCarriesOnFromTheDesktopItReached() {
+    var slide = Moonwalk.Slide()
+    slide.lift(at: -0.6, velocity: -1, now: 0, canGoLeft: true, canGoRight: true)
+    _ = slide.advance(to: 1)
+    slide.follow(0.05)
+    #expect(abs(slide.offset - -0.95) < 1e-9)
+}
+
+/// Heading right while the desktops slide right, turning back left only
+/// once they clearly slide left again.
+@Test func headingTurnsWithTheSlideButNotOnAWobble() {
+    var heading = Moonwalk.Heading()
+    let turns = [-0.1, -0.09, -0.05, 0.3, 0.29, 0.2].map { heading.follow($0) }
+    #expect(turns == [false, false, true, false, false, true])
+    #expect(!heading.right)
+}

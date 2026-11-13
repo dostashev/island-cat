@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
     private var slide = Moonwalk.Slide()
+    /// The tail trails behind: on the left while the cat goes right.
+    private var heading = Moonwalk.Heading()
     /// How far the legs are out, 0 to 1, and how long since the desktops
     /// last moved.
     private var reach = 0.0
@@ -90,7 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let out = now - lastMoved < 0.1
         reach = out ? min(1, reach + 1.0 / 12) : max(0, reach - 1.0 / 18)
         let phase = Moonwalk.phase(slide.offset)
-        for panel in panels { panel.walk(phase: phase, reach: reach) }
+        let turned = heading.follow(slide.offset)
+        for panel in panels {
+            panel.walk(phase: phase, reach: reach)
+            if turned { panel.tail(onLeft: heading.right) }
+        }
         if !out && reach == 0 {
             walkTimer?.invalidate()
             walkTimer = nil
@@ -112,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let island = island(on: screen) else { continue }
             let panel = CatPanel(island: island, scale: screen.backingScaleFactor, animates: animates)
             panel.orderFrontRegardless()
+            if heading.right { panel.tail(onLeft: true) }
             panels.append(panel)
         }
         FixedSpace.claim(panels)
