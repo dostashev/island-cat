@@ -11,6 +11,8 @@ import os
 @MainActor
 final class DesktopSwipes {
     enum Change {
+        /// The fingers came down and started a swipe.
+        case began(progress: Double)
         case moved(progress: Double)
         case lifted(progress: Double, velocity: Double)
     }
@@ -111,7 +113,9 @@ final class DesktopSwipes {
         let progress = event.getDoubleValueField(Self.progressField)
         guard kind == Self.horizontalSwipe else { return }
         switch phase {
-        case 1, 2:
+        case 1:
+            changed(.began(progress: progress))
+        case 2:
             changed(.moved(progress: progress))
         case 4, 8:
             changed(.lifted(progress: progress, velocity: event.getDoubleValueField(Self.velocityField)))

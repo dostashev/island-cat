@@ -37,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private lazy var swipes = DesktopSwipes { [weak self] in self?.swiped($0) }
     private var slide = Walk.Slide()
+    /// The current swipe switches the desktops under the cat, not another
+    /// display's.
+    private var swipeMovesCat = true
     /// Which way the cat goes; its tail trails behind, on the left while
     /// it goes right.
     private var heading = Walk.Heading()
@@ -93,11 +96,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func swiped(_ change: DesktopSwipes.Change) {
         let now = CACurrentMediaTime()
+        if case .began = change { swipeMovesCat = swipeReachesCat() }
+        guard swipeMovesCat else { return }
         // A new walk starts heading left from where the desktops are.
         if walkTimer == nil { heading = Walk.Heading(at: slide.offset) }
         let before = slide.offset
         switch change {
-        case .moved(let progress):
+        case .began(let progress), .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
             let screen = panels.first?.screen ?? NSScreen.main
@@ -118,6 +123,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             walkTimer = link
         }
         stepWalk()
+    }
+
+    /// Whether the swipe that just began switches the desktops under the
+    /// cat. With "Displays have separate Spaces" on, a swipe switches the
+    /// desktops of the display the pointer is on.
+    private func swipeReachesCat() -> Bool {
+        guard NSScreen.screensHaveSeparateSpaces else { return true }
+        let pointer = NSEvent.mouseLocation
+        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(pointer, $0.frame, false) })
+        else { return true }
+        return panels.contains { $0.screen == screen }
     }
 
     /// The legs come out while the desktops slide and tuck away once they
