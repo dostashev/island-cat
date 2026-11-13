@@ -51,10 +51,10 @@ public struct Petting: Sendable {
         turnTimes = []
     }
 
-    /// What the cat says when petted.
+    /// What the cat says when petted: cat sounds only.
     public static let replies = [
-        "purr…", "prrrrrr", "mrrp!", "more pets pls", "♥", "=^.^=", "don't stop", "mrow?",
-        "that's the spot", "zzz… purr", "hehe", "*kneads*",
+        "mrr", "mrrp", "mrrp?", "prrrr", "prrrrrrr", "mew", "mrow", "mrrrow", "nyaa", "brrp",
+        "mrr…", "♥",
     ]
 
     /// A reply other than `last`, picked with `random` in 0..<1.

@@ -14,8 +14,8 @@ pointer close and the cat perks up.
 - Follows Reduce Motion (System Settings › Accessibility › Display).
 - On a notched Mac the notch becomes the cat's body.
 - Screens without a camera get no cat.
-- Pet it by stroking the pointer back and forth over the island, and it says
-  something back.
+- Pet it by stroking the pointer back and forth over the island, and it mrrps
+  back.
 
 ## Install
 
