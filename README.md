@@ -1,6 +1,6 @@
 # Island Cat
 
-![Island Cat walking along the menu bar and pausing in the middle](docs/hero.png)
+![Island Cat stays centered and walks as desktops, menus, and browser windows slide underneath](docs/hero.png)
 
 ## Dy*Nyaa*Mic Island
 
