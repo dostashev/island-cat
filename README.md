@@ -2,6 +2,21 @@
 
 ![Island Cat](docs/hero.png)
 
+<table>
+  <tr>
+    <td><img src="docs/pet.png" alt="Petting the cat"><br>Rest the pointer on it to pet it</td>
+    <td><img src="docs/walk.png" alt="The cat walking"><br>Walks along as you swipe between desktops</td>
+  </tr>
+  <tr>
+    <td><img src="docs/nyan.png" alt="Nyan mode"><br>Nyan mode</td>
+    <td><img src="docs/skates.png" alt="Roller skates"><br>Glides on roller skates…</td>
+  </tr>
+  <tr>
+    <td><img src="docs/skateboard.png" alt="Skateboard"><br>…or a skateboard</td>
+    <td></td>
+  </tr>
+</table>
+
 A menu bar app that turns your MacBook's camera island into a cat. Pet it by
 resting the pointer on it, and it walks along when you swipe between desktops.
 
