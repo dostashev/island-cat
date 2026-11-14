@@ -40,16 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The current swipe switches the desktops under the cat, not another
     /// display's.
     private var swipeMovesCat = true
-    /// The desktops as the current swipe started, and the slide's offset
-    /// then.
+    /// The desktops as the current swipe started.
     private var desktops: Walk.Desktops?
-    private var swipeStart = 0.0
-    /// Which way the current swipe set off (1, -1, or 0 until it moves),
-    /// and whether macOS has stopped drawing windows during it, which it
-    /// goes on doing until the fingers lift.
-    private var firstHeading = 0
-    private var drawingStopped = false
-    private var fingersDown = false
     /// Which way the cat goes; its tail trails behind, on the left while
     /// it goes right.
     private var heading = Walk.Heading()
@@ -115,16 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if walkTimer == nil { heading = Walk.Heading(at: slide.offset) }
         let before = slide.offset
         switch change {
-        case .began(let progress):
-            slide.follow(progress)
-            swipeStart = slide.offset - progress
-            firstHeading = 0
-            drawingStopped = false
-            fingersDown = true
-        case .moved(let progress):
+        case .began(let progress), .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
-            fingersDown = false
             slide.lift(
                 at: progress, velocity: velocity, now: now,
                 desktops: desktops?.around ?? (before: 1, after: 1))
@@ -173,29 +158,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // slide without drawing any app's windows, so the cat would freeze
         // mid-step. Instead it gets on its skates or skateboard at once and
         // glides through the rest of the slide, frozen mid-glide, or without
-        // either, tucks its legs away at once and stands still. It does the
-        // same just before a long swipe slides on between two more plain
-        // desktops, which macOS does not draw windows through either.
-        var aboutToStop = false
-        if fingersDown, let desktops {
-            let along = slide.offset - swipeStart
-            // Which way it set off, once it has clearly gone that way, so a
-            // wobble at the start does not count.
-            if firstHeading == 0 && abs(along) > 0.15 { firstHeading = along > 0 ? 1 : -1 }
-            if desktops.drawingStops(at: along, firstHeading: firstHeading) { drawingStopped = true }
-            // Where the fingers will be three frames on, so the legs are
-            // away just before macOS stops drawing; only that close, so the
-            // cat does not stop early, and only for now, in case the
-            // fingers turn back. Only on the way out: a swipe cancelled
-            // back to where it started is not about to go past it.
-            if abs(along + 3 * slid) > abs(along) {
-                aboutToStop = desktops.drawingStops(at: along + 3 * slid, firstHeading: firstHeading)
-            }
-        } else if !slide.isSettling {
-            // The slide after the fingers lifted is over; macOS draws again.
-            drawingStopped = false
-        }
-        let frozen = slide.isSettling || drawingStopped || aboutToStop
+        // either, tucks its legs away at once and stands still. (A long
+        // swipe on past the next desktop, or back past the current one,
+        // freezes it too, mid-step: macOS stops drawing there as well.)
+        let frozen = slide.isSettling
         if frozen {
             lastMoved = 0
             if glide != .none && reach > 0 {

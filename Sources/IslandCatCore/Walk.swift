@@ -95,14 +95,9 @@ public enum Walk {
         }
     }
 
-    /// How far the swipe's progress goes from one desktop to the next: a
-    /// desktop and the gap macOS leaves before the next. Read off a swipe:
-    /// the next desktop fills the screen at 1.17, and the one after it
-    /// comes into view at 1.21.
+    /// How far the swipe's progress goes from one desktop to the next,
+    /// read off a swipe: the next desktop fills the screen at 1.17.
     public static let desktop = 1.17
-    /// How much further the progress goes before the next desktop comes
-    /// into view past one that fills the screen: the gap between them.
-    public static let gap = 0.04
 
     /// The desktops on the cat's screen, in Mission Control's order, as a
     /// swipe starts: which are plain desktops rather than full-screen apps,
@@ -118,29 +113,6 @@ public enum Walk {
 
         /// How many desktops there are before and after the current one.
         public var around: (before: Int, after: Int) { (index, plain.count - 1 - index) }
-
-        /// Whether macOS stops drawing windows with the desktops `offset`
-        /// from where the swipe started (positive toward the desktops after
-        /// the current one), for a swipe that set off `firstHeading` (1
-        /// after, -1 before, 0 not yet). macOS draws them only while the
-        /// current desktop and the one the swipe set off toward are all
-        /// that is on screen. Once another desktop slides into view, past
-        /// that one or back past the current one on the other side, it
-        /// stops, if that desktop and the one beside it are plain desktops;
-        /// for a full-screen app it goes on drawing.
-        public func drawingStops(at offset: Double, firstHeading: Int) -> Bool {
-            let distance = abs(offset)
-            guard distance > Walk.gap else { return false }
-            let heading = offset > 0 ? 1 : -1
-            // How many desktops that way have come into view.
-            let shown = Int((distance - Walk.gap) / Walk.desktop) + 1
-            let drawn = heading == firstHeading || firstHeading == 0 ? 1 : 0
-            guard shown > drawn else { return false }
-            let far = index + heading * shown
-            let near = far - heading
-            guard plain.indices.contains(far), plain.indices.contains(near) else { return false }
-            return plain[far] && plain[near]
-        }
     }
 
     /// How thick the legs are drawn, in points.

@@ -247,28 +247,7 @@ func rainbowFitsTheWindow(screen: ScreenShape) throws {
     #expect(slide.offset == Walk.desktop)
 }
 
-/// Desktop, desktop, desktop freezes once the third desktop comes into
-/// view, at 1.21 (read off a swipe); desktop, desktop, full-screen app
-/// does not.
-@Test func drawingStopsBetweenPlainDesktopsPastTheFirst() {
-    // Full-screen app, [desktop], desktop, desktop, full-screen app.
+@Test func desktopsAroundTheCurrentOne() {
     let desktops = Walk.Desktops(plain: [false, true, true, true, false], index: 1)
-    #expect(!desktops.drawingStops(at: 1.17, firstHeading: 1))
-    #expect(!desktops.drawingStops(at: 1.20, firstHeading: 1))
-    #expect(desktops.drawingStops(at: 1.22, firstHeading: 1))
-    #expect(!desktops.drawingStops(at: 2.4, firstHeading: 1))
     #expect(desktops.around == (1, 3))
-}
-
-/// Setting off one way and turning back past the start freezes once the
-/// desktop on the other side comes into view, if it is a plain desktop.
-@Test func drawingStopsTurningBackPastTheStart() {
-    let desktops = Walk.Desktops(plain: [false, true, true], index: 1)
-    #expect(!desktops.drawingStops(at: -0.03, firstHeading: 1))
-    #expect(!desktops.drawingStops(at: -0.2, firstHeading: 1))
-    let plain = Walk.Desktops(plain: [true, true, true], index: 1)
-    #expect(!plain.drawingStops(at: -0.03, firstHeading: 1))
-    #expect(plain.drawingStops(at: -0.05, firstHeading: 1))
-    #expect(!plain.drawingStops(at: -0.2, firstHeading: -1))
-    #expect(!plain.drawingStops(at: -0.2, firstHeading: 0))
 }
