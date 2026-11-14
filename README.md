@@ -1,6 +1,6 @@
 # Island Cat
 
-![Island Cat](docs/hero.png)
+![Island Cat](docs/hero.gif)
 
 <table>
   <tr>
@@ -13,7 +13,7 @@
   </tr>
   <tr>
     <td><img src="docs/skateboard.png" alt="Skateboard"><br>…or a skateboard</td>
-    <td></td>
+    <td><img src="docs/notch.png" alt="Coming out of the notch"><br>Beside a notch it uses a cat door; click it to send it in</td>
   </tr>
 </table>
 
