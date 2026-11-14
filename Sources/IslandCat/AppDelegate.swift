@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var panels: [CatPanel] = []
     private var pointerMonitor: Any?
+    private var localPointerMonitor: Any?
 
     private var showsCat: Bool {
         get { defaults.object(forKey: "showsCat") as? Bool ?? true }
@@ -87,6 +88,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.pointerMoved() }
+        }
+        // Over a cat that takes clicks, the pointer moves over this app.
+        localPointerMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) {
+            [weak self] event in
+            MainActor.assumeIsolated { self?.pointerMoved() }
+            return event
         }
         placeCats()
         for panel in panels { panel.comeOutOfTheNotch() }

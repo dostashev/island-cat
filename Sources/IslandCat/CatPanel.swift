@@ -38,8 +38,10 @@ final class CatPanel: NSPanel {
     }
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
     private let tailSide = CALayer()
-    /// The whole cat, which slides out of the notch when it arrives.
+    /// The whole cat, which slides in and out of the notch, inside `clip`,
+    /// which cuts it off at the notch's side meanwhile.
     private let cat = CALayer()
+    private let clip = CALayer()
     /// The cat door in the notch's side, there only while the cat comes out.
     private let door = CAShapeLayer()
     private var entrance: Timer?
@@ -69,6 +71,7 @@ final class CatPanel: NSPanel {
         backgroundColor = .clear
         hasShadow = false
         ignoresMouseEvents = true
+        acceptsMouseMovedEvents = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         // Above the menu bar, below the menus that drop down from it.
@@ -82,8 +85,10 @@ final class CatPanel: NSPanel {
         door.fillColor = NSColor(white: 0.28, alpha: 1).cgColor
         door.opacity = 0
         view.layer?.addSublayer(door)
+        clip.frame = view.bounds
         cat.frame = view.bounds
-        view.layer?.addSublayer(cat)
+        clip.addSublayer(cat)
+        view.layer?.addSublayer(clip)
         legs.contentsScale = scale
         legs.strokeColor = NSColor.black.cgColor
         legs.fillColor = nil
@@ -117,23 +122,47 @@ final class CatPanel: NSPanel {
     /// flap in the notch's side swings open, the cat walks out to its
     /// place, and the flap swings shut behind its tail.
     func comeOutOfTheNotch() {
-        guard animates, let notch = island.notch else { return }
+        guard animates, island.isNotch, !throughTheDoor else { return }
+        goThroughTheDoor(out: true)
+    }
+
+    /// Clicked, the cat beside a notch goes back into it through the cat
+    /// door, stays a few seconds, and comes out again.
+    private func hideInTheNotch() {
+        guard animates, island.isNotch, !throughTheDoor else { return }
+        petting?.cancel()
+        petting = nil
+        goThroughTheDoor(out: false) { [weak self] in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                self?.goThroughTheDoor(out: true)
+            }
+        }
+    }
+
+    /// The cat is going through the cat door, or is in the notch.
+    private var throughTheDoor = false
+
+    private func goThroughTheDoor(out: Bool, then done: (@MainActor @Sendable () -> Void)? = nil) {
+        guard let notch = island.notch else { return }
+        throughTheDoor = true
+        ignoresMouseEvents = true
         let origin = island.canvas.origin
         let edge = notch.minX - origin.x
         let placement = Cat.Placement(body: island.body, origin: origin)
-        // Far enough right that all of the cat, whiskers first, starts
-        // inside the notch.
-        let start = edge - placement.point(CGPoint(x: -18, y: 0)).x + 1
-        let clip = CALayer()
-        clip.backgroundColor = NSColor.black.cgColor
-        clip.frame = CGRect(x: 0, y: 0, width: edge, height: cat.bounds.height)
+        // Far enough right that all of the cat, whiskers first, is inside
+        // the notch.
+        let inside = edge - placement.point(CGPoint(x: -18, y: 0)).x + 1
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        cat.mask = clip
-        cat.setAffineTransform(CGAffineTransform(translationX: start, y: 0))
+        clip.frame = CGRect(x: 0, y: 0, width: edge, height: cat.bounds.height)
+        clip.masksToBounds = true
+        cat.setAffineTransform(CGAffineTransform(translationX: out ? inside : 0, y: 0))
+        // Going in it walks right, its tail trailing on the left.
+        tail(onLeft: !out)
 
         // The flap: hinged at its top on the notch's side, as tall as the
-        // cat's body, swinging out to the left as the cat pushes through.
+        // cat's body, pushed open to the left as the cat goes through.
         let width: CGFloat = 2.5
         let height = island.body.height + 4
         door.bounds = CGRect(x: 0, y: 0, width: width, height: height)
@@ -164,8 +193,9 @@ final class CatPanel: NSPanel {
         door.add(vanish, forKey: "vanish")
         door.opacity = 0
 
-        // The cat walks out: easing to a stop, stepping as it goes, then
-        // standing on straight legs and tucking them away.
+        // The cat walks through, stepping as it goes, coming out easing to
+        // a stop and going in setting off slowly, then stands on straight
+        // legs and tucks them away.
         let began = CACurrentMediaTime()
         var stride = Walk.Stride()
         var travelled: CGFloat = 0
@@ -175,31 +205,57 @@ final class CatPanel: NSPanel {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let t = min(1, max(0, (CACurrentMediaTime() - began - 0.12) / 0.85))
-                let eased = 1 - pow(1 - t, 3)
-                let offset = start * (1 - eased)
-                let moved = (start - offset) - travelled
-                travelled = start - offset
+                let eased = out ? 1 - pow(1 - t, 3) : t * t * (3 - 2 * t)
+                let offset = out ? inside * (1 - eased) : inside * eased
+                let moved = abs(inside * eased - travelled)
+                travelled = inside * eased
                 CATransaction.begin()
                 CATransaction.setDisableActions(true)
                 self.cat.setAffineTransform(CGAffineTransform(translationX: offset, y: 0))
                 CATransaction.commit()
                 if t < 1 && moved > 0.01 {
-                    // Walking left, back through the stride: three steps
-                    // on the way out.
-                    stride.follow(-Double(moved / start) * 0.6, elapsed: 1.0 / 120)
+                    // Three steps through, back through the stride going
+                    // left and forward going right.
+                    stride.follow(Double(moved / inside) * (out ? -0.6 : 0.6), elapsed: 1.0 / 120)
                     reach = min(1, reach + 1.0 / 12)
                 } else {
                     stride.finish(elapsed: 1.0 / 120)
                     if stride.isStraight { reach = max(0, reach - 1.0 / 18) }
                 }
                 self.walk(phase: stride.phase, reach: reach, gliding: nil)
-                if t >= 1 && reach == 0 {
-                    self.entrance?.invalidate()
-                    self.entrance = nil
-                    self.cat.mask = nil
+                guard t >= 1 && reach == 0 else { return }
+                self.entrance?.invalidate()
+                self.entrance = nil
+                if out {
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
+                    self.clip.masksToBounds = false
+                    self.clip.frame = self.cat.frame
+                    CATransaction.commit()
+                    self.throughTheDoor = false
+                } else {
+                    // Facing out again for when it comes back.
+                    self.tail(onLeft: false)
                 }
+                done?()
             }
         }
+    }
+
+    /// Beside a notch, the pointer over the cat takes clicks, to send it
+    /// into the notch; anywhere else they go through to the menu bar.
+    private func takeClicks(at location: NSPoint) {
+        guard island.isNotch, animates else { return }
+        let over = !throughTheDoor && island.body.insetBy(dx: -4, dy: -4).contains(location)
+        if ignoresMouseEvents == over { ignoresMouseEvents = !over }
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown {
+            hideInTheNotch()
+            return
+        }
+        super.sendEvent(event)
     }
 
     override var canBecomeKey: Bool { false }
@@ -214,6 +270,7 @@ final class CatPanel: NSPanel {
     /// ears, whiskers and tail on the island while the pointer makes it grow.
     func pointer(at location: NSPoint) {
         pointer = location
+        takeClicks(at: location)
         let near = island.nearby.contains(location)
         if near != excited {
             excited = near
@@ -259,7 +316,7 @@ final class CatPanel: NSPanel {
     }
 
     private func pet(at location: NSPoint) {
-        guard petting == nil, onCat(location) else { return }
+        guard petting == nil, !throughTheDoor, onCat(location) else { return }
         petting = Task { [weak self] in
             var since = ContinuousClock.now
             var lastOn = since
