@@ -44,6 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// then.
     private var desktops: Walk.Desktops?
     private var swipeStart = 0.0
+    /// Which way the current swipe set off (1, -1, or 0 until it moves),
+    /// and whether macOS has stopped drawing windows during it, which it
+    /// goes on doing until the fingers lift.
+    private var firstHeading = 0
+    private var drawingStopped = false
+    private var fingersDown = false
     /// Which way the cat goes; its tail trails behind, on the left while
     /// it goes right.
     private var heading = Walk.Heading()
@@ -112,12 +118,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .began(let progress):
             slide.follow(progress)
             swipeStart = slide.offset - progress
+            firstHeading = 0
+            drawingStopped = false
+            fingersDown = true
         case .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
+            fingersDown = false
             slide.lift(
                 at: progress, velocity: velocity, now: now,
-                desktops: desktops?.around ?? (left: 99, right: 99))
+                desktops: desktops?.around ?? (before: 1, after: 1))
         }
         // The fingers moving the desktops; a swipe held still is not
         // walking.
@@ -166,9 +176,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // either, tucks its legs away at once and stands still. It does the
         // same just before a long swipe slides on between two more plain
         // desktops, which macOS does not draw windows through either.
-        let along = slide.offset - swipeStart
-        let frozen = slide.isSettling
-            || (desktops?.drawingStops(at: along + (along > 0 ? 0.08 : -0.08)) ?? false)
+        var aboutToStop = false
+        if fingersDown, let desktops {
+            let along = slide.offset - swipeStart
+            // Which way it set off, once it has clearly gone that way, so a
+            // wobble at the start does not count.
+            if firstHeading == 0 && abs(along) > 0.15 { firstHeading = along > 0 ? 1 : -1 }
+            if desktops.drawingStops(at: along, firstHeading: firstHeading) { drawingStopped = true }
+            // Where the fingers will be three frames on, so the legs are
+            // away just before macOS stops drawing; only that close, so the
+            // cat does not stop early, and only for now, in case the
+            // fingers turn back. Only on the way out: a swipe cancelled
+            // back to where it started is not about to go past it.
+            if abs(along + 3 * slid) > abs(along) {
+                aboutToStop = desktops.drawingStops(at: along + 3 * slid, firstHeading: firstHeading)
+            }
+        } else if !slide.isSettling {
+            // The slide after the fingers lifted is over; macOS draws again.
+            drawingStopped = false
+        }
+        let frozen = slide.isSettling || drawingStopped || aboutToStop
         if frozen {
             lastMoved = 0
             if glide != .none && reach > 0 {
@@ -213,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left
-        odometer.follow(slide.offset, width: desktopPitch)
+        odometer.follow(slide.offset, width: desktopPitch / Walk.desktop)
         let phase = stride.phase
         for panel in panels {
             panel.walk(

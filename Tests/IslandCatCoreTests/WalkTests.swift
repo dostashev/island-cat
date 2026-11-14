@@ -16,13 +16,13 @@ import Testing
         last = slide.offset
         t += 1.0 / 120
     }
-    #expect(slide.offset == -1)
+    #expect(slide.offset == -Walk.desktop)
     #expect(abs(t - 10.75) < 0.02)
 }
 
 @Test func slideSpringsBackWithoutADesktopThatWay() {
     var slide = Walk.Slide()
-    slide.lift(at: -0.424, velocity: -2.038, now: 0, desktops: (1, 0))
+    slide.lift(at: -0.424, velocity: -2.038, now: 0, desktops: (0, 1))
     _ = slide.advance(to: 1)
     #expect(slide.offset == 0)
 }
@@ -115,7 +115,7 @@ func feetStayInTheMenuBar(screen: ScreenShape) throws {
     slide.lift(at: -0.6, velocity: -1, now: 0, desktops: (1, 1))
     _ = slide.advance(to: 1)
     slide.follow(0.05)
-    #expect(abs(slide.offset - -0.95) < 1e-9)
+    #expect(abs(slide.offset - (0.05 - Walk.desktop)) < 1e-9)
 }
 
 /// Heading right while the desktops slide right, turning back left only
@@ -237,29 +237,38 @@ func rainbowFitsTheWindow(screen: ScreenShape) throws {
     #expect(island.nearby.width < island.canvas.width)
 }
 
-/// A recorded long swipe lifted 2.21 desktops along: it goes on to the
-/// second desktop, not back to the first.
-@Test func longSwipeSettlesOnTheNearestDesktop() {
+/// A recorded long swipe lifted 2.21 desktops along from the first
+/// desktop: macOS slid back and settled on the second.
+@Test func longSwipeSettlesOnTheNextDesktop() {
     var slide = Walk.Slide()
     slide.follow(2.214)
-    slide.lift(at: 2.214, velocity: 0.394, now: 0, desktops: (3, 0))
+    slide.lift(at: 2.214, velocity: 0.394, now: 0, desktops: (0, 6))
     _ = slide.advance(to: 1)
-    #expect(slide.offset == 2)
-    slide.follow(0.1)
-    slide.lift(at: 2.9, velocity: 1, now: 2, desktops: (1, 0))
-    _ = slide.advance(to: 3)
-    #expect(slide.offset == 3)
+    #expect(slide.offset == Walk.desktop)
 }
 
-/// Desktop, desktop, desktop freezes on the second slide; desktop,
-/// desktop, full-screen app does not.
+/// Desktop, desktop, desktop freezes once the third desktop comes into
+/// view, at 1.21 (read off a swipe); desktop, desktop, full-screen app
+/// does not.
 @Test func drawingStopsBetweenPlainDesktopsPastTheFirst() {
-    // Full-screen app, desktop, desktop, [desktop], full-screen app.
-    let desktops = Walk.Desktops(plain: [false, true, true, true, false], index: 3)
-    #expect(!desktops.drawingStops(at: 0.9))
-    #expect(desktops.drawingStops(at: 1.2))
-    #expect(!desktops.drawingStops(at: 2.3))
-    #expect(!desktops.drawingStops(at: -0.9))
-    #expect(!desktops.drawingStops(at: -1.2))
-    #expect(desktops.around == (3, 1))
+    // Full-screen app, [desktop], desktop, desktop, full-screen app.
+    let desktops = Walk.Desktops(plain: [false, true, true, true, false], index: 1)
+    #expect(!desktops.drawingStops(at: 1.17, firstHeading: 1))
+    #expect(!desktops.drawingStops(at: 1.20, firstHeading: 1))
+    #expect(desktops.drawingStops(at: 1.22, firstHeading: 1))
+    #expect(!desktops.drawingStops(at: 2.4, firstHeading: 1))
+    #expect(desktops.around == (1, 3))
+}
+
+/// Setting off one way and turning back past the start freezes once the
+/// desktop on the other side comes into view, if it is a plain desktop.
+@Test func drawingStopsTurningBackPastTheStart() {
+    let desktops = Walk.Desktops(plain: [false, true, true], index: 1)
+    #expect(!desktops.drawingStops(at: -0.03, firstHeading: 1))
+    #expect(!desktops.drawingStops(at: -0.2, firstHeading: 1))
+    let plain = Walk.Desktops(plain: [true, true, true], index: 1)
+    #expect(!plain.drawingStops(at: -0.03, firstHeading: 1))
+    #expect(plain.drawingStops(at: -0.05, firstHeading: 1))
+    #expect(!plain.drawingStops(at: -0.2, firstHeading: -1))
+    #expect(!plain.drawingStops(at: -0.2, firstHeading: 0))
 }

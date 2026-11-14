@@ -35,15 +35,19 @@ public enum Walk {
         }
 
         /// The fingers lifted at `progress`, moving at `velocity` desktop
-        /// widths a second, at time `now`. The slide goes on to the nearest
-        /// desktop, counting a flick, as far as there are desktops that way:
-        /// `desktops` is how many there are to the left and to the right of
-        /// the one the swipe started on. A long swipe can pass several.
+        /// widths a second, at time `now`. The slide goes on to the next
+        /// desktop past halfway or when flicked, unless there is no desktop
+        /// that way; otherwise it springs back. `desktops` is how many there
+        /// are before and after the current one; positive progress heads
+        /// for the ones after it. However far a long swipe went, macOS
+        /// moves at most one desktop, sliding back to it.
         public mutating func lift(
-            at progress: Double, velocity: Double, now: Double, desktops: (left: Int, right: Int)
+            at progress: Double, velocity: Double, now: Double, desktops: (before: Int, after: Int)
         ) {
             let projected = progress + velocity * 0.15
-            let to = min(Double(desktops.left), max(-Double(desktops.right), projected.rounded()))
+            var to = 0.0
+            if projected <= -Walk.desktop / 2 && desktops.before > 0 { to = -Walk.desktop }
+            if projected >= Walk.desktop / 2 && desktops.after > 0 { to = Walk.desktop }
             offset = base + progress
             release = (offset, base + to, now)
         }
@@ -91,6 +95,15 @@ public enum Walk {
         }
     }
 
+    /// How far the swipe's progress goes from one desktop to the next: a
+    /// desktop and the gap macOS leaves before the next. Read off a swipe:
+    /// the next desktop fills the screen at 1.17, and the one after it
+    /// comes into view at 1.21.
+    public static let desktop = 1.17
+    /// How much further the progress goes before the next desktop comes
+    /// into view past one that fills the screen: the gap between them.
+    public static let gap = 0.04
+
     /// The desktops on the cat's screen, in Mission Control's order, as a
     /// swipe starts: which are plain desktops rather than full-screen apps,
     /// and which one the swipe starts on.
@@ -103,22 +116,30 @@ public enum Walk {
             self.index = index
         }
 
-        /// How many desktops there are to the left and to the right.
-        public var around: (left: Int, right: Int) { (index, plain.count - 1 - index) }
+        /// How many desktops there are before and after the current one.
+        public var around: (before: Int, after: Int) { (index, plain.count - 1 - index) }
 
         /// Whether macOS stops drawing windows with the desktops `offset`
-        /// widths from where the swipe started (positive as they slide
-        /// right, toward the desktops on the left). A long swipe that goes
-        /// on past the first desktop freezes windows while it slides
-        /// between two plain desktops, but not on toward a full-screen app.
-        public func drawingStops(at offset: Double) -> Bool {
-            let passed = Int(abs(offset))
-            guard passed >= 1 else { return false }
-            let step = offset > 0 ? -1 : 1
-            let from = index + step * passed
-            let to = from + step
-            guard plain.indices.contains(from), plain.indices.contains(to) else { return false }
-            return plain[from] && plain[to]
+        /// from where the swipe started (positive toward the desktops after
+        /// the current one), for a swipe that set off `firstHeading` (1
+        /// after, -1 before, 0 not yet). macOS draws them only while the
+        /// current desktop and the one the swipe set off toward are all
+        /// that is on screen. Once another desktop slides into view, past
+        /// that one or back past the current one on the other side, it
+        /// stops, if that desktop and the one beside it are plain desktops;
+        /// for a full-screen app it goes on drawing.
+        public func drawingStops(at offset: Double, firstHeading: Int) -> Bool {
+            let distance = abs(offset)
+            guard distance > Walk.gap else { return false }
+            let heading = offset > 0 ? 1 : -1
+            // How many desktops that way have come into view.
+            let shown = Int((distance - Walk.gap) / Walk.desktop) + 1
+            let drawn = heading == firstHeading || firstHeading == 0 ? 1 : 0
+            guard shown > drawn else { return false }
+            let far = index + heading * shown
+            let near = far - heading
+            guard plain.indices.contains(far), plain.indices.contains(near) else { return false }
+            return plain[far] && plain[near]
         }
     }
 
