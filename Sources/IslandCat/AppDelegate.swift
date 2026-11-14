@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.pointerMoved() }
         }
         placeCats()
+        for panel in panels { panel.comeOutOfTheNotch() }
         if walks { _ = swipes.start() }
     }
 
@@ -346,6 +347,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleCat() {
         showsCat.toggle()
         placeCats()
+        for panel in panels { panel.comeOutOfTheNotch() }
     }
 
     /// Meters with one decimal, grouped the way this Mac's locale groups

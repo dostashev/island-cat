@@ -31,9 +31,10 @@ public struct Island: Sendable, Equatable {
     public var band: CGRect
     /// The island as the system draws it at rest.
     public var body: CGRect
-    /// A notch: the cat sits in the menu bar to its left, its body drawn
-    /// there, as nothing on screen grows under the pointer.
-    public var isNotch: Bool
+    /// A notch, which the cat sits in the menu bar to the left of, its body
+    /// drawn there, as nothing on screen grows under the pointer.
+    public var notch: CGRect?
+    public var isNotch: Bool { notch != nil }
 
     /// The Dynamic Island at rest sits in the bottom of its camera housing:
     /// a pill 31 pt tall, inset 0.5 pt from the housing's sides and bottom
@@ -73,7 +74,9 @@ public struct Island: Sendable, Equatable {
                 x: housingLeft - 8 - tail - width,
                 y: top - height * 0.15 - 2 - height,
                 width: width, height: height)
-            return Island(band: band, body: body, isNotch: true)
+            let notch = CGRect(
+                x: housingLeft, y: top - screen.safeTop, width: housing, height: screen.safeTop)
+            return Island(band: band, body: body, notch: notch)
         }
         let height = min(restHeight, screen.safeTop - restInset)
         let body = CGRect(
@@ -81,7 +84,7 @@ public struct Island: Sendable, Equatable {
             y: top - screen.safeTop + restInset,
             width: housing - 2 * restInset,
             height: height)
-        return Island(band: band, body: body, isNotch: false)
+        return Island(band: band, body: body, notch: nil)
     }
 
     /// How close, around the grown island, the pointer comes before the

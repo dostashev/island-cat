@@ -38,6 +38,11 @@ final class CatPanel: NSPanel {
     }
     /// Mirrors the tail across the cat, to trail behind it as it goes right.
     private let tailSide = CALayer()
+    /// The whole cat, which slides out of the notch when it arrives.
+    private let cat = CALayer()
+    /// The cat door in the notch's side, there only while the cat comes out.
+    private let door = CAShapeLayer()
+    private var entrance: Timer?
 
     /// One part of the cat: `shape` draws it and runs its motion, inside
     /// `holder`, which follows the island as it grows under the pointer.
@@ -72,6 +77,13 @@ final class CatPanel: NSPanel {
 
         let view = NSView(frame: NSRect(origin: .zero, size: canvas.size))
         view.wantsLayer = true
+        // The cat door behind the cat, whose back the open flap rests on.
+        door.contentsScale = scale
+        door.fillColor = NSColor(white: 0.28, alpha: 1).cgColor
+        door.opacity = 0
+        view.layer?.addSublayer(door)
+        cat.frame = view.bounds
+        view.layer?.addSublayer(cat)
         legs.contentsScale = scale
         legs.strokeColor = NSColor.black.cgColor
         legs.fillColor = nil
@@ -84,21 +96,110 @@ final class CatPanel: NSPanel {
         rainbowFade.frame = rainbow.bounds
         rainbowFade.colors = [NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
         rainbow.mask = rainbowFade
-        view.layer?.addSublayer(rainbow)
-        view.layer?.addSublayer(legs)
+        cat.addSublayer(rainbow)
+        cat.addSublayer(legs)
         skates.contentsScale = scale
         skates.fillColor = NSColor.black.cgColor
-        view.layer?.addSublayer(skates)
+        cat.addSublayer(skates)
         tailSide.anchorPoint = CGPoint(
             x: (island.body.midX - canvas.minX) / canvas.width, y: 0.5)
         tailSide.frame = CGRect(origin: .zero, size: canvas.size)
-        view.layer?.addSublayer(tailSide)
+        cat.addSublayer(tailSide)
         for piece in pieces {
-            (piece.part.name == "tail" ? tailSide : view.layer)?.addSublayer(piece.holder)
+            (piece.part.name == "tail" ? tailSide : cat).addSublayer(piece.holder)
         }
         contentView = view
         setFrame(canvas, display: false)
         move()
+    }
+
+    /// Beside a notch, the cat comes out of it through a cat door: the
+    /// flap in the notch's side swings open, the cat walks out to its
+    /// place, and the flap swings shut behind its tail.
+    func comeOutOfTheNotch() {
+        guard animates, let notch = island.notch else { return }
+        let origin = island.canvas.origin
+        let edge = notch.minX - origin.x
+        let placement = Cat.Placement(body: island.body, origin: origin)
+        // Far enough right that all of the cat, whiskers first, starts
+        // inside the notch.
+        let start = edge - placement.point(CGPoint(x: -18, y: 0)).x + 1
+        let clip = CALayer()
+        clip.backgroundColor = NSColor.black.cgColor
+        clip.frame = CGRect(x: 0, y: 0, width: edge, height: cat.bounds.height)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        cat.mask = clip
+        cat.setAffineTransform(CGAffineTransform(translationX: start, y: 0))
+
+        // The flap: hinged at its top on the notch's side, as tall as the
+        // cat's body, swinging out to the left as the cat pushes through.
+        let width: CGFloat = 2.5
+        let height = island.body.height + 4
+        door.bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        door.path = CGPath(
+            roundedRect: door.bounds, cornerWidth: width / 2, cornerHeight: width / 2, transform: nil)
+        door.anchorPoint = CGPoint(x: 0.5, y: 1)
+        door.position = CGPoint(x: edge - width / 2, y: island.body.maxY + 2 - origin.y)
+        door.opacity = 1
+        CATransaction.commit()
+
+        let swing = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+        let open = -70 * Double.pi / 180
+        swing.values = [0, open, open, 0.3, -0.14, 0.06, 0]
+        swing.keyTimes = [0, 0.1, 0.6, 0.72, 0.82, 0.91, 1]
+        swing.timingFunctions = [
+            CAMediaTimingFunction(name: .easeOut), CAMediaTimingFunction(name: .linear),
+            CAMediaTimingFunction(name: .easeInEaseOut), CAMediaTimingFunction(name: .easeInEaseOut),
+            CAMediaTimingFunction(name: .easeInEaseOut), CAMediaTimingFunction(name: .easeInEaseOut),
+        ]
+        swing.duration = 1.9
+        door.add(swing, forKey: "swing")
+        let vanish = CABasicAnimation(keyPath: "opacity")
+        vanish.fromValue = 1
+        vanish.toValue = 0
+        vanish.beginTime = CACurrentMediaTime() + 1.9
+        vanish.duration = 0.3
+        vanish.fillMode = .backwards
+        door.add(vanish, forKey: "vanish")
+        door.opacity = 0
+
+        // The cat walks out: easing to a stop, stepping as it goes, then
+        // standing on straight legs and tucking them away.
+        let began = CACurrentMediaTime()
+        var stride = Walk.Stride()
+        var travelled: CGFloat = 0
+        var reach = 0.0
+        entrance?.invalidate()
+        entrance = Timer.scheduledTimer(withTimeInterval: 1.0 / 120, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let t = min(1, max(0, (CACurrentMediaTime() - began - 0.12) / 0.85))
+                let eased = 1 - pow(1 - t, 3)
+                let offset = start * (1 - eased)
+                let moved = (start - offset) - travelled
+                travelled = start - offset
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                self.cat.setAffineTransform(CGAffineTransform(translationX: offset, y: 0))
+                CATransaction.commit()
+                if t < 1 && moved > 0.01 {
+                    // Walking left, back through the stride: three steps
+                    // on the way out.
+                    stride.follow(-Double(moved / start) * 0.6, elapsed: 1.0 / 120)
+                    reach = min(1, reach + 1.0 / 12)
+                } else {
+                    stride.finish(elapsed: 1.0 / 120)
+                    if stride.isStraight { reach = max(0, reach - 1.0 / 18) }
+                }
+                self.walk(phase: stride.phase, reach: reach, gliding: nil)
+                if t >= 1 && reach == 0 {
+                    self.entrance?.invalidate()
+                    self.entrance = nil
+                    self.cat.mask = nil
+                }
+            }
+        }
     }
 
     override var canBecomeKey: Bool { false }
