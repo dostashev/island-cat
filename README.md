@@ -1,6 +1,6 @@
 # Island Cat
 
-![Island Cat](docs/hero.gif)
+![Island Cat walking along the menu bar and pausing in the middle](docs/hero.png)
 
 <table>
   <tr>
