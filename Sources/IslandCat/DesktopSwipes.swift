@@ -1,5 +1,4 @@
 import AppKit
-import IslandCatCore
 import os
 
 /// Follows the trackpad swipe between desktops as it happens.
@@ -125,9 +124,10 @@ final class DesktopSwipes {
         }
     }
 
-    /// The desktops on `screen` and which one is showing, from
-    /// WindowServer's list of spaces; nil when the list is unavailable.
-    static func desktops(on screen: NSScreen) -> Walk.Desktops? {
+    /// How many desktops come before and after the current one on
+    /// `screen`, in Mission Control's order, from WindowServer's list of
+    /// spaces; nil when the list is unavailable.
+    static func desktops(on screen: NSScreen) -> (before: Int, after: Int)? {
         typealias MainConnectionID = @convention(c) () -> Int32
         typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
         guard
@@ -149,7 +149,6 @@ final class DesktopSwipes {
             let current = (display["Current Space"] as? [String: Any])?["ManagedSpaceID"] as? Int,
             let index = spaces.firstIndex(where: { ($0["ManagedSpaceID"] as? Int) == current })
         else { return nil }
-        // Type 0 is a desktop; full-screen apps are type 4.
-        return Walk.Desktops(plain: spaces.map { ($0["type"] as? Int) == 0 }, index: index)
+        return (index, spaces.count - 1 - index)
     }
 }

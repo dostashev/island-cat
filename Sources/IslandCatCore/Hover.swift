@@ -1,8 +1,7 @@
 import CoreGraphics
 
 /// How the system's island responds to the pointer, measured by recording
-/// it at 120 frames a second on the MacBook Pro with PROLED XDR Display
-/// (`scripts/measure-island.swift`).
+/// it at 120 frames a second on the MacBook Pro with PROLED XDR Display.
 ///
 /// - It grows 4.5 pt out to each side and 2.5 pt up and down (58 × 31 pt to
 ///   67 × 36 pt), and leans toward the pointer by a tenth of the pointer's

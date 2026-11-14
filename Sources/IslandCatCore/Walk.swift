@@ -99,22 +99,6 @@ public enum Walk {
     /// read off a swipe: the next desktop fills the screen at 1.17.
     public static let desktop = 1.17
 
-    /// The desktops on the cat's screen, in Mission Control's order, as a
-    /// swipe starts: which are plain desktops rather than full-screen apps,
-    /// and which one the swipe starts on.
-    public struct Desktops: Sendable {
-        public var plain: [Bool]
-        public var index: Int
-
-        public init(plain: [Bool], index: Int) {
-            self.plain = plain
-            self.index = index
-        }
-
-        /// How many desktops there are before and after the current one.
-        public var around: (before: Int, after: Int) { (index, plain.count - 1 - index) }
-    }
-
     /// How thick the legs are drawn, in points.
     public static let legWidth: CGFloat = 2
 

@@ -247,7 +247,3 @@ func rainbowFitsTheWindow(screen: ScreenShape) throws {
     #expect(slide.offset == Walk.desktop)
 }
 
-@Test func desktopsAroundTheCurrentOne() {
-    let desktops = Walk.Desktops(plain: [false, true, true, true, false], index: 1)
-    #expect(desktops.around == (1, 3))
-}
