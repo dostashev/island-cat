@@ -35,16 +35,15 @@ public enum Walk {
         }
 
         /// The fingers lifted at `progress`, moving at `velocity` desktop
-        /// widths a second, at time `now`. The slide goes on to the next
-        /// desktop past halfway or when flicked, unless there is no desktop
-        /// that way; otherwise it springs back.
+        /// widths a second, at time `now`. The slide goes on to the nearest
+        /// desktop, counting a flick, as far as there are desktops that way:
+        /// `desktops` is how many there are to the left and to the right of
+        /// the one the swipe started on. A long swipe can pass several.
         public mutating func lift(
-            at progress: Double, velocity: Double, now: Double, canGoLeft: Bool, canGoRight: Bool
+            at progress: Double, velocity: Double, now: Double, desktops: (left: Int, right: Int)
         ) {
             let projected = progress + velocity * 0.15
-            var to = 0.0
-            if projected <= -0.5 && canGoRight { to = -1 }
-            if projected >= 0.5 && canGoLeft { to = 1 }
+            let to = min(Double(desktops.left), max(-Double(desktops.right), projected.rounded()))
             offset = base + progress
             release = (offset, base + to, now)
         }
@@ -89,6 +88,37 @@ public enum Walk {
             }
             furthest = right ? max(furthest, offset) : min(furthest, offset)
             return false
+        }
+    }
+
+    /// The desktops on the cat's screen, in Mission Control's order, as a
+    /// swipe starts: which are plain desktops rather than full-screen apps,
+    /// and which one the swipe starts on.
+    public struct Desktops: Sendable {
+        public var plain: [Bool]
+        public var index: Int
+
+        public init(plain: [Bool], index: Int) {
+            self.plain = plain
+            self.index = index
+        }
+
+        /// How many desktops there are to the left and to the right.
+        public var around: (left: Int, right: Int) { (index, plain.count - 1 - index) }
+
+        /// Whether macOS stops drawing windows with the desktops `offset`
+        /// widths from where the swipe started (positive as they slide
+        /// right, toward the desktops on the left). A long swipe that goes
+        /// on past the first desktop freezes windows while it slides
+        /// between two plain desktops, but not on toward a full-screen app.
+        public func drawingStops(at offset: Double) -> Bool {
+            let passed = Int(abs(offset))
+            guard passed >= 1 else { return false }
+            let step = offset > 0 ? -1 : 1
+            let from = index + step * passed
+            let to = from + step
+            guard plain.indices.contains(from), plain.indices.contains(to) else { return false }
+            return plain[from] && plain[to]
         }
     }
 

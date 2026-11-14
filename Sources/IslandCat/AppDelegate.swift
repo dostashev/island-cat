@@ -40,6 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The current swipe switches the desktops under the cat, not another
     /// display's.
     private var swipeMovesCat = true
+    /// The desktops as the current swipe started, and the slide's offset
+    /// then.
+    private var desktops: Walk.Desktops?
+    private var swipeStart = 0.0
     /// Which way the cat goes; its tail trails behind, on the left while
     /// it goes right.
     private var heading = Walk.Heading()
@@ -96,20 +100,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func swiped(_ change: DesktopSwipes.Change) {
         let now = CACurrentMediaTime()
-        if case .began = change { swipeMovesCat = swipeReachesCat() }
+        if case .began = change {
+            swipeMovesCat = swipeReachesCat()
+            desktops = (panels.first?.screen ?? NSScreen.main).flatMap(DesktopSwipes.desktops)
+        }
         guard swipeMovesCat else { return }
         // A new walk starts heading left from where the desktops are.
         if walkTimer == nil { heading = Walk.Heading(at: slide.offset) }
         let before = slide.offset
         switch change {
-        case .began(let progress), .moved(let progress):
+        case .began(let progress):
+            slide.follow(progress)
+            swipeStart = slide.offset - progress
+        case .moved(let progress):
             slide.follow(progress)
         case .lifted(let progress, let velocity):
-            let screen = panels.first?.screen ?? NSScreen.main
-            let neighbors = screen.map(DesktopSwipes.neighbors) ?? (left: true, right: true)
             slide.lift(
                 at: progress, velocity: velocity, now: now,
-                canGoLeft: neighbors.left, canGoRight: neighbors.right)
+                desktops: desktops?.around ?? (left: 99, right: 99))
         }
         // The fingers moving the desktops; a swipe held still is not
         // walking.
@@ -155,8 +163,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // slide without drawing any app's windows, so the cat would freeze
         // mid-step. Instead it gets on its skates or skateboard at once and
         // glides through the rest of the slide, frozen mid-glide, or without
-        // either, tucks its legs away at once and stands still.
-        if slide.isSettling {
+        // either, tucks its legs away at once and stands still. It does the
+        // same just before a long swipe slides on between two more plain
+        // desktops, which macOS does not draw windows through either.
+        let along = slide.offset - swipeStart
+        let frozen = slide.isSettling
+            || (desktops?.drawingStops(at: along + (along > 0 ? 0.08 : -0.08)) ?? false)
+        if frozen {
             lastMoved = 0
             if glide != .none && reach > 0 {
                 // All the way out, so macOS does not freeze them half out.
@@ -174,7 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if moving {
             stride.follow(slid, elapsed: elapsed)
             reach = min(1, reach + elapsed / 0.1)
-        } else if !(skating && slide.isSettling) {
+        } else if !(skating && frozen) {
             // Finish the step on straight legs, then tuck them away; on
             // skates or a board, once the slide is over.
             stride.finish(elapsed: elapsed)
@@ -183,20 +196,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // Only the fingers turn the cat; the system's slide after they
         // lift, even springing back, does not.
-        if !slide.isSettling { _ = heading.follow(slide.offset) }
+        if !frozen { _ = heading.follow(slide.offset) }
         // The rainbow streams out as the cat walks and draws back in after
         // the slide. When the fingers lift it is all the way out at once,
         // so macOS does not freeze it half out through the slide.
         if moving {
             trail = nyan ? min(1, trail + elapsed / 0.25) : 0
-        } else if slide.isSettling {
+        } else if frozen {
             if trail > 0 { trail = 1 }
         } else {
             trail = max(0, trail - elapsed / 0.3)
         }
         // Over once the legs and the rainbow are away and the slide has
         // settled.
-        let done = reach == 0 && trail == 0 && !moving && !slide.isSettling
+        let done = reach == 0 && trail == 0 && !moving && !frozen
         let left = heading.right && !done
         let turned = left != tailLeft
         tailLeft = left

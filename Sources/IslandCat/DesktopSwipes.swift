@@ -1,4 +1,5 @@
 import AppKit
+import IslandCatCore
 import os
 
 /// Follows the trackpad swipe between desktops as it happens.
@@ -124,10 +125,9 @@ final class DesktopSwipes {
         }
     }
 
-    /// Whether there is a desktop to the left and to the right of the
-    /// current one on the screen with the island, from WindowServer's
-    /// list of spaces. Assumes both when the list is unavailable.
-    static func neighbors(on screen: NSScreen) -> (left: Bool, right: Bool) {
+    /// The desktops on `screen` and which one is showing, from
+    /// WindowServer's list of spaces; nil when the list is unavailable.
+    static func desktops(on screen: NSScreen) -> Walk.Desktops? {
         typealias MainConnectionID = @convention(c) () -> Int32
         typealias CopyManagedDisplaySpaces = @convention(c) (Int32) -> Unmanaged<CFArray>?
         guard
@@ -138,7 +138,7 @@ final class DesktopSwipes {
             let displays = unsafeBitCast(copy, to: CopyManagedDisplaySpaces.self)(
                 unsafeBitCast(main, to: MainConnectionID.self)()
             )?.takeRetainedValue() as? [[String: Any]]
-        else { return (true, true) }
+        else { return nil }
         let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
         let uuid = number.flatMap { CGDisplayCreateUUIDFromDisplayID($0)?.takeRetainedValue() }
             .map { CFUUIDCreateString(nil, $0) as String }
@@ -148,7 +148,8 @@ final class DesktopSwipes {
             let spaces = display["Spaces"] as? [[String: Any]],
             let current = (display["Current Space"] as? [String: Any])?["ManagedSpaceID"] as? Int,
             let index = spaces.firstIndex(where: { ($0["ManagedSpaceID"] as? Int) == current })
-        else { return (true, true) }
-        return (index > 0, index < spaces.count - 1)
+        else { return nil }
+        // Type 0 is a desktop; full-screen apps are type 4.
+        return Walk.Desktops(plain: spaces.map { ($0["type"] as? Int) == 0 }, index: index)
     }
 }
