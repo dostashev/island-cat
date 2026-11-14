@@ -297,8 +297,8 @@ final class CatPanel: NSPanel {
         }
     }
 
-    /// The cat says something once the pointer has been on it this long,
-    /// and again each time as long again while it stays.
+    /// The initial hover delay; later replies leave five quiet seconds
+    /// after the previous bubble has finished fading out.
     static let petAfter = 3.0
     /// How long the pointer can slip off the cat without starting the wait
     /// over, so petting it while moving around counts.
@@ -319,6 +319,7 @@ final class CatPanel: NSPanel {
         guard petting == nil, !throughTheDoor, onCat(location) else { return }
         petting = Task { [weak self] in
             var since = ContinuousClock.now
+            var delay = Self.petAfter
             var lastOn = since
             // Checks where the pointer is ten times a second while it is
             // near, so resting it still or slipping off for a moment counts.
@@ -331,8 +332,9 @@ final class CatPanel: NSPanel {
                 } else if now - lastOn > .seconds(Self.slipAllowed) {
                     break
                 }
-                if now - since >= .seconds(Self.petAfter) {
+                if now - since >= .seconds(delay) {
                     since = now
+                    delay = Bubble.shown + 0.25 + 5  // Visible time + exit animation + quiet gap.
                     let reply = Petting.reply(after: self.lastReply, random: Double.random(in: 0..<1))
                     self.lastReply = reply
                     self.bubble.say(reply, on: self.island)
