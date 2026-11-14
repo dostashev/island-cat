@@ -31,7 +31,8 @@ public struct Island: Sendable, Equatable {
     public var band: CGRect
     /// The island as the system draws it at rest.
     public var body: CGRect
-    /// A notch: the housing itself, flush with the top edge.
+    /// A notch: the cat sits in the menu bar to its left, its body drawn
+    /// there, as nothing on screen grows under the pointer.
     public var isNotch: Bool
 
     /// The Dynamic Island at rest sits in the bottom of its camera housing:
@@ -60,10 +61,18 @@ public struct Island: Sendable, Equatable {
             x: screen.frame.minX, y: top - bandHeight, width: screen.frame.width, height: bandHeight)
 
         // A pill camera's housing is less than three times as wide as it is
-        // tall; a notch is wider, and is its own island.
+        // tall; a notch is wider. Beside a notch the cat gets a body of the
+        // Dynamic Island's shape, sized to the menu bar, with room above it
+        // for the ears, below it for the legs, and between its tail and the
+        // notch.
         if housing >= 3 * screen.safeTop {
+            let height = (bandHeight * 0.62).rounded()
+            let width = (height * 58 / 31).rounded()
+            let tail = height * 51 / Cat.box.height
             let body = CGRect(
-                x: housingLeft, y: top - screen.safeTop, width: housing, height: screen.safeTop)
+                x: housingLeft - 8 - tail - width,
+                y: top - height * 0.15 - 2 - height,
+                width: width, height: height)
             return Island(band: band, body: body, isNotch: true)
         }
         let height = min(restHeight, screen.safeTop - restInset)

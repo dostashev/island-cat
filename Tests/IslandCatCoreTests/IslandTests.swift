@@ -65,12 +65,21 @@ let notched = ScreenShape(
     #expect(island == Island.on(proled))
 }
 
-@Test func notchIsItsOwnIsland() throws {
+/// Beside a notch the cat sits in the menu bar to its left, the whole cat,
+/// tail and all, clear of the notch and inside the menu bar.
+@Test func catSitsLeftOfANotch() throws {
     let island = try #require(Island.on(notched))
     #expect(island.isNotch)
-    #expect(island.body == CGRect(x: 663.5, y: 950, width: 185, height: 32))
+    let notch: CGFloat = 663.5
+    #expect(island.body.height < island.band.height)
+    let placement = Cat.Placement(body: island.body, origin: .zero)
+    let tailTip = placement.point(CGPoint(x: 118, y: 17))
+    #expect(tailTip.x < notch)
+    #expect(island.body.minX > notch - 120)
+    #expect(island.body.maxY < island.band.maxY - 3)
+    #expect(island.body.minY > island.band.minY + 4)
     #expect(island.hovered(toward: CGPoint(x: 700, y: 960)) == island.body)
-    #expect(!island.startsHover(at: CGPoint(x: 756, y: 970)))
+    #expect(!island.startsHover(at: CGPoint(x: island.body.midX, y: island.body.midY)))
 }
 
 @Test func screenWithoutCameraHasNoIsland() {
