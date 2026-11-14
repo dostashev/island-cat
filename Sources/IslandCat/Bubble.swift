@@ -11,6 +11,8 @@ final class Bubble: NSPanel {
     /// Counts what it has said, so a fade that ends after it said the next
     /// thing does not hide it.
     private var said = 0
+    /// Animate our own layer, not a view-backed layer whose geometry AppKit manages.
+    private var bubbleLayer: CALayer?
 
     static let font = NSFont.systemFont(ofSize: 12, weight: .regular)
     static let ink = NSColor(white: 0.78, alpha: 1)
@@ -41,7 +43,7 @@ final class Bubble: NSPanel {
         frameRect
     }
 
-    /// Says `text` under the cat on `island` for a couple of seconds.
+    /// Says `text` to the left of the cat on `island` for a couple of seconds.
     func say(_ text: String, on island: Island) {
         let label = NSAttributedString(
             string: text,
@@ -56,21 +58,29 @@ final class Bubble: NSPanel {
         // the whiskers.
         let whiskers = Cat.Placement(body: island.body, origin: .zero).point(CGPoint(x: -17, y: 30))
         let tip = CGPoint(x: whiskers.x - 3, y: whiskers.y)
-        setFrame(
-            NSRect(x: tip.x - size.width, y: tip.y, width: size.width, height: size.height),
-            display: false)
+        let layout = BubbleLayout(size: size, tip: tip)
+        setFrame(layout.window, display: false)
 
-        let view = BubbleView(frame: NSRect(origin: .zero, size: size), label: label)
+        // Leave the host view unflipped and stationary. Bubble drawing uses
+        // y-down coordinates, but animation uses a separate y-up layer, with
+        // the bottom-right tail held still throughout both the pop and exit.
+        let view = NSView(frame: NSRect(origin: .zero, size: layout.window.size))
+        view.wantsLayer = true
+        let scale = screen?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let layer = CALayer()
+        layer.bounds = NSRect(origin: .zero, size: size)
+        layer.anchorPoint = CGPoint(x: 1, y: 0)
+        layer.position = layout.localTip
+        layer.contentsScale = scale
+        layer.contents = BubbleView.image(size: size, label: label, scale: scale)
+        view.layer?.addSublayer(layer)
         contentView = view
+        bubbleLayer = layer
         orderFrontRegardless()
         FixedSpace.claim([self])
 
         hiding?.cancel()
         said += 1
-        let layer = view.layer!
-        // Pop out of the tail's tip.
-        layer.anchorPoint = CGPoint(x: 1, y: 0)  // the tail's tip
-        layer.frame = view.bounds
         layer.opacity = 1
         if animates {
             let pop = CASpringAnimation(keyPath: "transform.scale")
@@ -96,7 +106,7 @@ final class Bubble: NSPanel {
 
     /// Shrinks back into the tail's tip as it fades, the way it popped out.
     private func fadeOut() {
-        guard let layer = contentView?.layer else { return }
+        guard let layer = bubbleLayer else { return }
         let shown = said
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
@@ -119,30 +129,34 @@ final class Bubble: NSPanel {
         layer.opacity = 0
         layer.add(away, forKey: "away")
         CATransaction.commit()
-    }}
+    }
+}
 
 /// Draws the bubble: a black rounded box with a Messages-style tail off its
 /// bottom right corner, at the cat, and the text in it.
-private final class BubbleView: NSView {
-    private let label: NSAttributedString
-
-    init(frame: NSRect, label: NSAttributedString) {
-        self.label = label
-        super.init(frame: frame)
-        wantsLayer = true
-    }
-
-    required init?(coder: NSCoder) { nil }
-
-    override var isFlipped: Bool { true }
-
-    override func draw(_ dirtyRect: NSRect) {
+@MainActor
+private enum BubbleView {
+    /// Rasterize at the display's backing scale so AppKit does not manage
+    /// the animated layer's anchor or position. The drawing stays y down.
+    static func image(size: NSSize, label: NSAttributedString, scale: CGFloat) -> CGImage {
+        let width = Int(ceil(size.width * scale))
+        let height = Int(ceil(size.height * scale))
+        let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: CGFloat(width) / size.width, y: -CGFloat(height) / size.height)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         NSColor.black.setFill()
         let box = NSSize(
-            width: bounds.width - Bubble.tail.width, height: bounds.height - Bubble.tail.height)
-        Self.outline(box: box).fill()
-        let size = label.size()
-        label.draw(at: NSPoint(x: (box.width - size.width) / 2, y: (box.height - size.height) / 2))
+            width: size.width - Bubble.tail.width, height: size.height - Bubble.tail.height)
+        outline(box: box).fill()
+        let text = label.size()
+        label.draw(at: NSPoint(x: (box.width - text.width) / 2, y: (box.height - text.height) / 2))
+        NSGraphicsContext.restoreGraphicsState()
+        return context.makeImage()!
     }
 
     /// The bubble's outline, y down, as one smooth path, like a Messages
