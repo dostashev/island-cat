@@ -5,6 +5,10 @@
 A menu bar app that turns your MacBook's camera island into a cat. Pet it by
 resting the pointer on it, and it walks along when you swipe between desktops.
 
+Made for the MacBook Pro models with a Dynamic Island (PROLED), where the
+island becomes the cat's body. MacBooks with a notch work too: the cat sits
+in the menu bar just left of the notch.
+
 ## Install
 
 ```sh
@@ -14,6 +18,10 @@ brew install --cask island-cat
 ```
 
 Or download the zip from the [latest release](https://github.com/dostashev/island-cat/releases/latest).
+
+To walk along when you swipe between desktops, the cat needs Input
+Monitoring permission (System Settings › Privacy & Security › Input
+Monitoring); the app asks for it.
 
 ## Build
 
