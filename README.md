@@ -2,27 +2,29 @@
 
 ![Island Cat walking along the menu bar and pausing in the middle](docs/hero.png)
 
+## Dy*Nyaa*Mic Island
+
+A menu bar app that turns your MacBook's dynamic island into a cat.
+
 <table>
   <tr>
-    <td><img src="docs/pet.png" alt="Petting the cat"><br>Rest the pointer on it to pet it</td>
+    <td><img src="docs/pet.png" alt="Petting the cat"><br>Will mrr if you pet it</td>
     <td><img src="docs/walk.png" alt="The cat walking"><br>Walks along as you swipe between desktops</td>
   </tr>
   <tr>
     <td><img src="docs/nyan.png" alt="Nyan mode"><br>Nyan mode</td>
-    <td><img src="docs/skates.png" alt="Roller skates"><br>Glides on roller skates…</td>
+    <td><img src="docs/skates.png" alt="Roller skates"><br>When you swipe fast - glides on roller skates…</td>
   </tr>
   <tr>
     <td><img src="docs/skateboard.png" alt="Skateboard"><br>…or a skateboard</td>
-    <td><img src="docs/notch.png" alt="Coming out of the notch"><br>Beside a notch it uses a cat door; click it to send it in</td>
+    <td><img src="docs/notch.png" alt="Coming out of the notch"><br>Uses the notch as a cat house on older Macs (click to enter)</td>
   </tr>
 </table>
 
-A menu bar app that turns your MacBook's camera island into a cat. Pet it by
-resting the pointer on it, and it walks along when you swipe between desktops.
 
-Made for the MacBook Pro models with a Dynamic Island (PROLED), where the
-island becomes the cat's body. MacBooks with a notch work too: the cat sits
-in the menu bar just left of the notch.
+Made for the MacBook Pro models with a Dynamic Island (PROLED XDR).
+
+MacBooks with a notch work too: the cat sits in the menu bar just left of the notch.
 
 ## Install
 
@@ -34,8 +36,8 @@ brew install --cask island-cat
 
 Or download the zip from the [latest release](https://github.com/dostashev/island-cat/releases/latest).
 
-To walk along when you swipe between desktops, the cat needs Input
-Monitoring permission (System Settings › Privacy & Security › Input
+To walk along when you swipe between desktops, **the cat needs Input
+Monitoring permission** (System Settings › Privacy & Security › Input
 Monitoring); the app asks for it.
 
 ## Build
