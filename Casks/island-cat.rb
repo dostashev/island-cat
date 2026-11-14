@@ -1,6 +1,6 @@
 cask "island-cat" do
-  version "0.1.2"
-  sha256 "8865ba704cdb04496a683d8f17f25b211e725ce65cc7db44de3d1db75a3f13fa"
+  version "0.1.3"
+  sha256 "2fab6bae0d5e949542615c23b52bd51412100b60f99923cb42080d731c9e8d0c"
 
   url "https://github.com/dostashev/island-cat/releases/download/v#{version}/Island-Cat-#{version}.zip"
   name "Island Cat"
