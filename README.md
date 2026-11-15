@@ -8,16 +8,11 @@ A menu bar app that turns your MacBook's dynamic island into a cat.
 
 <table>
   <tr>
-    <td><img src="docs/pet.png" alt="Petting the cat"><br>Will mrr if you pet it</td>
-    <td><img src="docs/walk.png" alt="The cat walking"><br>Walks along as you swipe between desktops</td>
+    <td width="50%" align="center"><img src="docs/pet.png" alt="Hovering over the cat makes it mrr in an animated bubble"><br>Will mrr if you pet it</td>
+    <td width="50%" align="center"><img src="docs/nyan.png" alt="The walking cat trails a rainbow that switches sides when it turns"><br>Nyan mode</td>
   </tr>
   <tr>
-    <td><img src="docs/nyan.png" alt="Nyan mode"><br>Nyan mode</td>
-    <td><img src="docs/skates.png" alt="Roller skates"><br>When you swipe fast - glides on roller skates…</td>
-  </tr>
-  <tr>
-    <td><img src="docs/skateboard.png" alt="Skateboard"><br>…or a skateboard</td>
-    <td><img src="docs/notch.png" alt="Coming out of the notch"><br>Uses the notch as a cat house on older Macs (click to enter)</td>
+    <td colspan="2" align="center"><img src="docs/notch.png" width="340" alt="Clicking the cat sends it through the notch door, then it comes back out"><br>Uses the notch as a cat house on older Macs (click to enter)</td>
   </tr>
 </table>
 
