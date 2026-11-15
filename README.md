@@ -12,14 +12,12 @@ A menu bar app that turns your MacBook's dynamic island into a cat.
     <td width="50%" align="center"><img src="docs/nyan.png" alt="The walking cat trails a rainbow that switches sides when it turns"><br>Nyan mode</td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><img src="docs/notch.png" width="340" alt="Clicking the cat sends it through the notch door, then it comes back out"><br>Uses the notch as a cat house on older Macs (click to enter)</td>
+    <td colspan="2" align="center"><img src="docs/notch.png" width="500" alt="Clicking the cat sends it through the notch door, then it comes back out"><br>Uses the notch as a cat house on older Macs (click to enter)</td>
   </tr>
 </table>
 
 
-Made for the MacBook Pro models with a Dynamic Island (PROLED XDR).
-
-MacBooks with a notch work too: the cat sits in the menu bar just left of the notch.
+Made for the MacBook Pro models with a Dynamic Island (PROLED XDR), but if you own an older Mac – the cat will use the notch as its house.
 
 ## Install
 
@@ -30,6 +28,9 @@ brew install --cask island-cat
 ```
 
 Or download the zip from the [latest release](https://github.com/dostashev/island-cat/releases/latest).
+
+**Note**: I don't have an Apple Developer account and Apple's website bugs out when I try to get one, 
+so instead you have to go to System Settings › Privacy & Security and allow the app there (or build from source).
 
 To walk along when you swipe between desktops, **the cat needs Input
 Monitoring permission** (System Settings › Privacy & Security › Input
